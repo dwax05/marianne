@@ -72,6 +72,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html.theme-transition::view-transition-old(root),
+html.theme-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html.theme-transition::view-transition-old(root) {
+  z-index: 0;
+}
+
+html.theme-transition::view-transition-new(root) {
+  z-index: 1;
+}
+
 /* Scrollbars hidden globally for a cleaner tool feel. */
 * {
   scrollbar-width: none;

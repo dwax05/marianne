@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Landing } from './components/landing/Landing'
 import { Studio } from './components/studio/Studio'
 import { PaintCanvasSessionProvider } from './components/ui/PaintCanvas'
-import { applyTheme } from './theme'
-import type { Theme } from './theme'
+import { applyTheme, themeTransitionRadius } from './theme'
+import type { Theme, ThemeTransitionOrigin } from './theme'
 
 /** Minimal hash router: '#/app...' => studio, everything else => landing. */
 function useRoute(): string {
@@ -21,10 +22,58 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
   const hash = useRoute()
   const [theme, setTheme] = useState(initialTheme)
   const view = hash.startsWith('#/app') ? 'app' : 'landing'
-  const toggleTheme = () => {
+  const toggleTheme = (origin: ThemeTransitionOrigin) => {
     const nextTheme = theme === 'light' ? 'dark' : 'light'
-    applyTheme(nextTheme)
-    setTheme(nextTheme)
+    const updateTheme = () => {
+      applyTheme(nextTheme)
+      setTheme(nextTheme)
+    }
+
+    if (
+      !document.startViewTransition ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      updateTheme()
+      return
+    }
+
+    const root = document.documentElement
+    root.classList.add('theme-transition')
+
+    const transition = document.startViewTransition(() => {
+      flushSync(updateTheme)
+    })
+
+    void transition.ready
+      .then(() => {
+        const radius = themeTransitionRadius(
+          origin,
+          window.innerWidth,
+          window.innerHeight,
+        )
+
+        root.animate(
+          {
+            clipPath: [
+              `circle(0px at ${origin.x}px ${origin.y}px)`,
+              `circle(${radius}px at ${origin.x}px ${origin.y}px)`,
+            ],
+          },
+          {
+            duration: 850,
+            easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+            pseudoElement: '::view-transition-new(root)',
+          },
+        )
+      })
+      .catch(() => {
+        // A skipped transition still leaves the newly selected theme applied.
+      })
+
+    void transition.finished.then(
+      () => root.classList.remove('theme-transition'),
+      () => root.classList.remove('theme-transition'),
+    )
   }
 
   return (

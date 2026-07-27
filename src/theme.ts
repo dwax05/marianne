@@ -2,6 +2,11 @@ export const THEME_STORAGE_KEY = 'marianne-theme'
 
 export type Theme = 'light' | 'dark'
 
+export interface ThemeTransitionOrigin {
+  x: number
+  y: number
+}
+
 type ThemeReader = Pick<Storage, 'getItem'>
 type ThemeWriter = Pick<Storage, 'setItem'>
 type ThemeRoot = Pick<HTMLElement, 'dataset'>
@@ -40,4 +45,15 @@ export function applyTheme(
   } catch {
     // Theme switching should still work when storage is blocked or full.
   }
+}
+
+export function themeTransitionRadius(
+  { x, y }: ThemeTransitionOrigin,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  return Math.hypot(
+    Math.max(x, viewportWidth - x),
+    Math.max(y, viewportHeight - y),
+  )
 }

@@ -3,6 +3,7 @@ import {
   THEME_STORAGE_KEY,
   applyTheme,
   readStoredTheme,
+  themeTransitionRadius,
 } from './theme'
 
 describe('theme preferences', () => {
@@ -40,5 +41,14 @@ describe('theme preferences', () => {
       ),
     ).not.toThrow()
     expect(dataset.theme).toBe('dark')
+  })
+
+  it('sizes the theme reveal to reach the farthest viewport corner', () => {
+    expect(themeTransitionRadius({ x: 50, y: 50 }, 100, 100)).toBeCloseTo(
+      Math.hypot(50, 50),
+    )
+    expect(themeTransitionRadius({ x: 0, y: 0 }, 100, 100)).toBeCloseTo(
+      Math.hypot(100, 100),
+    )
   })
 })
