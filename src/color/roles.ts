@@ -1,6 +1,7 @@
 import { NEUTRAL_CHROMA_MAX } from './audit'
 import { AA_NORMAL, contrast } from './contrast'
 import { toOklch } from './convert'
+import { clamp01 } from '../lib/num'
 import type { Oklch, Palette, Role, Swatch } from './types'
 
 type RoleConfidence = 'high' | 'medium' | 'low'
@@ -865,10 +866,6 @@ function inferredRationale(
   return `The ${orientation}-background mapping scored higher${
     accessible ? ' and includes a WCAG AA text pairing' : ''
   }.`
-}
-
-function clamp01(value: number): number {
-  return Math.min(1, Math.max(0, value))
 }
 
 function roundScore(value: number): number {

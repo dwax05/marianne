@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { mixPaintPixel, toPaintRgb } from '../../color/paint'
+import { clamp } from '../../lib/num'
 import { Button } from './Button'
 import { UndoIcon } from './icons'
 import type { Theme } from '../../theme'
@@ -516,8 +517,4 @@ function drawBrushSegment(
 function jitter(seed: number, salt: number): number {
   const value = Math.sin(seed * 91.17 + salt * 47.11) * 43758.5453
   return (value - Math.floor(value)) * 2 - 1
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
 }

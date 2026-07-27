@@ -1,5 +1,6 @@
 import type { Hex, Oklch, Palette } from './types'
 import { toHex, toOklch } from './convert'
+import { clamp } from '../lib/num'
 
 export const NEUTRAL_CHROMA_MAX = 0.04
 const DARK_NEUTRAL_LIGHTNESS_MAX = 0.3
@@ -225,8 +226,4 @@ function median(values: number[]): number {
   return sorted.length % 2
     ? sorted[middle]
     : (sorted[middle - 1] + sorted[middle]) / 2
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
 }

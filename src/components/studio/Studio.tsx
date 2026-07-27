@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { usePalette } from '../../hooks/usePalette'
 import { encodePalette } from '../../color/encode'
 import { paletteHealth } from '../../color/health'
+import type { Palette } from '../../color/types'
 import { SwatchGrid } from './SwatchGrid'
 import { ContrastPanel } from './ContrastPanel'
 import { CvdPanel } from './CvdPanel'
@@ -42,6 +43,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
     await navigator.clipboard.writeText(pal.shareUrl())
     flash('Share link copied')
   }
+  const appendPalette = (p: Palette) => pal.commit([...pal.palette, ...p])
 
   return (
     <div className="relative isolate min-h-screen overflow-x-clip text-fg">
@@ -160,7 +162,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
                   >
                     <ImagePalettePanel
                       onReplace={pal.commit}
-                      onAppend={(p) => pal.commit([...pal.palette, ...p])}
+                      onAppend={appendPalette}
                     />
                   </Section>
                   <Section
@@ -171,7 +173,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
                     <HarmonyPanel
                       palette={pal.palette}
                       onReplace={pal.commit}
-                      onAppend={(p) => pal.commit([...pal.palette, ...p])}
+                      onAppend={appendPalette}
                     />
                   </Section>
                 </>
