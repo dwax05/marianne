@@ -2,8 +2,8 @@ import type { Hex, Oklch, Palette } from './types'
 import { toHex, toOklch } from './convert'
 
 export const NEUTRAL_CHROMA_MAX = 0.04
-export const DARK_NEUTRAL_LIGHTNESS_MAX = 0.3
-export const LIGHT_NEUTRAL_LIGHTNESS_MIN = 0.88
+const DARK_NEUTRAL_LIGHTNESS_MAX = 0.3
+const LIGHT_NEUTRAL_LIGHTNESS_MIN = 0.88
 
 export type NeutralTone = 'light' | 'dark'
 

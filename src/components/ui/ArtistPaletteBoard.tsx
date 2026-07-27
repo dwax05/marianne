@@ -1,11 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import {
-  createBoardLayout,
-} from './paintBoard'
+import { createBoardLayout } from './paintBoard'
 import type { BoardLayout, PalettePaint, PaintWell, Point } from './paintBoard'
 import { Button } from './Button'
-
-export type { PalettePaint } from './paintBoard'
 
 interface Props {
   paints: readonly PalettePaint[]

@@ -2,7 +2,7 @@ import type { Oklch, Palette } from './types'
 import { toOklch, toHex } from './convert'
 import { NEUTRAL_CHROMA_MAX } from './audit'
 
-export interface BalanceStep {
+interface BalanceStep {
   id: string
   hex: string
   l: number

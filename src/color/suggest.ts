@@ -246,6 +246,3 @@ function bridgeRole(l: number, c: number): Role {
   if (l <= 0.5) return 'dark-accent'
   return 'accent'
 }
-
-// re-export so callers can reason about hues without importing convert directly
-export { toOklch }

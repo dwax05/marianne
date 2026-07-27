@@ -4,6 +4,7 @@ import { ROLE_LABELS } from '../../color/types'
 import { AA_NORMAL, rolePairs, suggestContrastFix } from '../../color/contrast'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { ColorChip } from '../ui/ColorChip'
 import { ArrowRightIcon, LockIcon } from '../ui/icons'
 
 interface Props {
@@ -122,10 +123,7 @@ function LevelBadge({ level }: { level: string }) {
 function Chip({ hex, label }: { hex: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <span
-        className="inline-block h-5 w-5 rounded border border-white/10"
-        style={{ background: hex }}
-      />
+      <ColorChip hex={hex} className="h-5 w-5" />
       <span className="font-mono text-xs text-fg">{label}</span>
     </span>
   )

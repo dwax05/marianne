@@ -18,17 +18,6 @@ export function toHex(o: Oklch): Hex {
   return formatHex(clamped) ?? '#000000'
 }
 
-/** Clamp an OKLCH color into the sRGB gamut, preserving hue. */
-export function clampToGamut(o: Oklch): Oklch {
-  const clamped = clampChroma({ mode: 'oklch', l: o.l, c: o.c, h: o.h }, 'oklch')
-  return { l: clamped.l ?? 0, c: clamped.c ?? 0, h: clamped.h ?? o.h }
-}
-
-/** True if a string parses to a valid color. */
-export function isValidColor(input: string): boolean {
-  return normalizeHex(input) !== null
-}
-
 /** Normalize CSS colors and bare 3/4/6/8-digit hex values to #rrggbb. */
 export function normalizeHex(input: string): Hex | null {
   const trimmed = input.trim()

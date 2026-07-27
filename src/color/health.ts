@@ -4,7 +4,7 @@ import { collapsedPairs } from './cvd'
 import { analyzeBalance } from './balance'
 import { analyzeCoverage, analyzeHarmony } from './audit'
 
-export interface HealthCheck {
+interface HealthCheck {
   key: 'contrast' | 'cvd' | 'balance' | 'harmony' | 'coverage'
   label: string
   /** 'good' = nothing wrong, 'warn' = minor, 'bad' = needs attention. */

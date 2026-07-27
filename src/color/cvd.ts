@@ -27,15 +27,6 @@ export function simulate(hex: Hex, type: CvdType, severity = 1): Hex {
   return formatHex(filtered) ?? hex
 }
 
-/** Map an entire palette through a CVD simulation. */
-export function simulatePalette(
-  palette: Palette,
-  type: CvdType,
-  severity = 1,
-): Palette {
-  return palette.map((s) => ({ ...s, hex: simulate(s.hex, type, severity) }))
-}
-
 /**
  * Pairs that become hard to tell apart under a CVD type: their simulated
  * colors fall within `threshold` CIEDE2000 units of each other. Default 10

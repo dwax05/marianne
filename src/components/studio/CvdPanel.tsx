@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react'
-import { motion } from 'motion/react'
 import type { CvdType, Palette } from '../../color/types'
 import { collapsedPairs, simulate } from '../../color/cvd'
 import { Badge } from '../ui/Badge'
+import { ColorChip } from '../ui/ColorChip'
+import { SegmentedControl } from '../ui/SegmentedControl'
 
 interface Props {
   palette: Palette
 }
 
-const TYPES: { key: CvdType; label: string }[] = [
-  { key: 'deuter', label: 'Deuteranopia' },
-  { key: 'prot', label: 'Protanopia' },
-  { key: 'trit', label: 'Tritanopia' },
+const TYPES: { value: CvdType; label: string }[] = [
+  { value: 'deuter', label: 'Deuteranopia' },
+  { value: 'prot', label: 'Protanopia' },
+  { value: 'trit', label: 'Tritanopia' },
 ]
 
 export function CvdPanel({ palette }: Props) {
@@ -29,29 +30,13 @@ export function CvdPanel({ palette }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="inline-flex rounded-lg bg-surface-2 p-0.5 text-sm">
-        {TYPES.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setType(t.key)}
-            className="relative px-2.5 py-1 text-xs font-medium"
-          >
-            {type === t.key && (
-              <motion.span
-                layoutId="cvd-type-pill"
-                className="absolute inset-0 rounded-md bg-accent"
-                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              />
-            )}
-            <span
-              className={`relative z-10 ${type === t.key ? 'text-accent-fg' : 'text-muted'}`}
-            >
-              {t.label}
-            </span>
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        value={type}
+        onChange={setType}
+        layoutId="cvd-type-pill"
+        options={TYPES}
+        size="sm"
+      />
 
       <div>
         <div className="mb-1 text-xs text-muted">Simulated appearance</div>
@@ -78,8 +63,8 @@ export function CvdPanel({ palette }: Props) {
               key={`${c.aId}-${c.bId}`}
               className="flex items-center gap-2 rounded-lg border border-line/50 bg-surface-2 p-2 text-sm"
             >
-              <Chip hex={byId[c.aId]} />
-              <Chip hex={byId[c.bId]} />
+              <ColorChip hex={byId[c.aId]} className="h-6 w-6" />
+              <ColorChip hex={byId[c.bId]} className="h-6 w-6" />
               <span className="text-muted">
                 look alike (ΔE {c.distance.toFixed(1)})
               </span>
@@ -92,16 +77,6 @@ export function CvdPanel({ palette }: Props) {
   )
 }
 
-function Chip({ hex }: { hex: string }) {
-  return (
-    <span
-      className="inline-block h-6 w-6 rounded border border-white/10"
-      style={{ background: hex }}
-      title={hex}
-    />
-  )
-}
-
 function labelFor(t: CvdType) {
-  return TYPES.find((x) => x.key === t)?.label ?? t
+  return TYPES.find((x) => x.value === t)?.label ?? t
 }

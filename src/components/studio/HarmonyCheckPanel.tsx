@@ -6,7 +6,7 @@ import {
   type HarmonyIssue,
 } from '../../color/audit'
 import { Button } from '../ui/Button'
-import { AlertIcon, CloseIcon, LockIcon } from '../ui/icons'
+import { AlertIcon, CheckIcon, CloseIcon, LockIcon } from '../ui/icons'
 
 interface Props {
   palette: Palette
@@ -28,7 +28,7 @@ export function HarmonyCheckPanel({ palette, onApply }: Props) {
     const dismissedAll = issues.length > 0
     return (
       <div className="flex items-start gap-2 rounded-xl border border-good/25 bg-good/10 p-3 text-sm text-good">
-        <span className="mt-0.5">✓</span>
+        <CheckIcon className="mt-0.5 shrink-0" width={16} height={16} />
         <div>
           <div className="font-medium">
             {dismissedAll ? 'No active suggestions' : 'Colors feel consistent'}

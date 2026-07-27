@@ -3,7 +3,7 @@ import { AA_NORMAL, contrast } from './contrast'
 import { toOklch } from './convert'
 import type { Oklch, Palette, Role, Swatch } from './types'
 
-export type RoleConfidence = 'high' | 'medium' | 'low'
+type RoleConfidence = 'high' | 'medium' | 'low'
 export type AssignableRole = Exclude<Role, 'unset'>
 
 export interface RoleAssignment {

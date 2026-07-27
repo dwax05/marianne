@@ -1,18 +1,11 @@
 import { wcagContrast } from 'culori'
-import type {
-  ContrastCell,
-  ContrastFix,
-  Hex,
-  Palette,
-  Swatch,
-  WcagLevel,
-} from './types'
+import type { ContrastFix, Hex, Palette, Swatch, WcagLevel } from './types'
 import { FOREGROUND_ROLES } from './types'
 import { toOklch, toHex } from './convert'
 
 export const AA_NORMAL = 4.5
-export const AA_LARGE = 3
-export const AAA_NORMAL = 7
+const AA_LARGE = 3
+const AAA_NORMAL = 7
 
 /** WCAG 2.x contrast ratio between two colors (1..21). */
 export function contrast(a: Hex, b: Hex): number {
@@ -25,20 +18,6 @@ export function grade(ratio: number): WcagLevel {
   if (ratio >= AA_NORMAL) return 'AA'
   if (ratio >= AA_LARGE) return 'AA-large'
   return 'fail'
-}
-
-/** All unordered color pairs in the palette with their ratio + grade. */
-export function contrastMatrix(palette: Palette): ContrastCell[] {
-  const cells: ContrastCell[] = []
-  for (let i = 0; i < palette.length; i++) {
-    for (let j = i + 1; j < palette.length; j++) {
-      const a = palette[i]
-      const b = palette[j]
-      const ratio = contrast(a.hex, b.hex)
-      cells.push({ aId: a.id, bId: b.id, ratio, level: grade(ratio) })
-    }
-  }
-  return cells
 }
 
 export interface ContrastPair {

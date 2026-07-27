@@ -96,12 +96,6 @@ export const LinkIcon = (p: IconProps) => (
   </Svg>
 )
 
-export const CodeIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="m16 18 6-6-6-6M8 6l-6 6 6 6" />
-  </Svg>
-)
-
 export const ChevronDownIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="m6 9 6 6 6-6" />

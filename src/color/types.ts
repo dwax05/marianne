@@ -57,13 +57,6 @@ export type CvdType = 'prot' | 'deuter' | 'trit'
 
 export type WcagLevel = 'AAA' | 'AA' | 'AA-large' | 'fail'
 
-export interface ContrastCell {
-  aId: string
-  bId: string
-  ratio: number
-  level: WcagLevel
-}
-
 export interface ContrastFix {
   hex: Hex
   ratio: number

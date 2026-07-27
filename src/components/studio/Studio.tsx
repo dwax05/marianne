@@ -12,6 +12,7 @@ import { ImagePalettePanel } from './ImagePalettePanel'
 import { SuggestPanel } from './SuggestPanel'
 import { HarmonyCheckPanel } from './HarmonyCheckPanel'
 import { Button } from '../ui/Button'
+import { SegmentedControl } from '../ui/SegmentedControl'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import type { ThemeToggleProps } from '../ui/ThemeToggle'
 import {
@@ -258,34 +259,15 @@ function ModeSwitch({
   mode: Mode
   onChange: (m: Mode) => void
 }) {
-  const tabs: { value: Mode; label: string }[] = [
-    { value: 'analyze', label: 'Analyze' },
-    { value: 'generate', label: 'Generate' },
-  ]
   return (
-    <div className="flex rounded-lg bg-surface-2 p-0.5 text-sm">
-      {tabs.map((t) => (
-        <button
-          type="button"
-          key={t.value}
-          onClick={() => onChange(t.value)}
-          aria-pressed={mode === t.value}
-          className="relative rounded-md px-3 py-1 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          {mode === t.value && (
-            <motion.span
-              layoutId="mode-pill"
-              className="absolute inset-0 rounded-md bg-accent"
-              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            />
-          )}
-          <span
-            className={`relative z-10 ${mode === t.value ? 'text-accent-fg' : 'text-muted'}`}
-          >
-            {t.label}
-          </span>
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      value={mode}
+      onChange={onChange}
+      layoutId="mode-pill"
+      options={[
+        { value: 'analyze', label: 'Analyze' },
+        { value: 'generate', label: 'Generate' },
+      ]}
+    />
   )
 }
