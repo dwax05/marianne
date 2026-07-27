@@ -8,6 +8,7 @@ import { ContrastPanel } from './ContrastPanel'
 import { CvdPanel } from './CvdPanel'
 import { BalancePanel } from './BalancePanel'
 import { HarmonyPanel } from './HarmonyPanel'
+import { ImagePalettePanel } from './ImagePalettePanel'
 import { SuggestPanel } from './SuggestPanel'
 import { HarmonyCheckPanel } from './HarmonyCheckPanel'
 import { Button } from '../ui/Button'
@@ -17,6 +18,7 @@ import {
   BalanceIcon,
   ContrastIcon,
   EyeIcon,
+  ImageIcon,
   LinkIcon,
   SparkleIcon,
   SwatchesIcon,
@@ -144,17 +146,29 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
                   </Section>
                 </>
               ) : (
-                <Section
-                  icon={<SwatchesIcon />}
-                  title="Generate a palette"
-                  blurb="Pick a base color and grow a harmonious set. Replace your palette or append the colors."
-                >
-                  <HarmonyPanel
-                    palette={pal.palette}
-                    onReplace={pal.commit}
-                    onAppend={(p) => pal.commit([...pal.palette, ...p])}
-                  />
-                </Section>
+                <>
+                  <Section
+                    icon={<ImageIcon />}
+                    title="From an image"
+                    blurb="Drop in a photo or artwork and pull its dominant colors into a palette. Replace your palette or append the colors."
+                  >
+                    <ImagePalettePanel
+                      onReplace={pal.commit}
+                      onAppend={(p) => pal.commit([...pal.palette, ...p])}
+                    />
+                  </Section>
+                  <Section
+                    icon={<SwatchesIcon />}
+                    title="Generate a palette"
+                    blurb="Pick a base color and grow a harmonious set. Replace your palette or append the colors."
+                  >
+                    <HarmonyPanel
+                      palette={pal.palette}
+                      onReplace={pal.commit}
+                      onAppend={(p) => pal.commit([...pal.palette, ...p])}
+                    />
+                  </Section>
+                </>
               )}
             </motion.div>
           </AnimatePresence>

@@ -20,6 +20,7 @@ import {
   suggestNeutral,
 } from './audit'
 import { suggestAdditions } from './suggest'
+import { extractPalette } from './extract'
 import {
   applyRoleAssignments,
   HIGH_CONFIDENCE_MARGIN_MIN,
@@ -659,5 +660,60 @@ describe('encode', () => {
   it('reads legacy plain-hex tokens', () => {
     const decoded = decodePalette('1b1b1f-e5484d')
     expect(decoded[0]).toMatchObject({ role: 'unset', locked: false })
+  })
+})
+
+describe('extractPalette', () => {
+  /** Build an RGBA buffer from [r,g,b] (or [r,g,b,a]) tuples. */
+  const rgba = (px: number[][]): Uint8ClampedArray =>
+    new Uint8ClampedArray(px.flatMap(([r, g, b, a = 255]) => [r, g, b, a]))
+
+  it('pulls the distinct dominant colors out of an image', () => {
+    const red = [255, 0, 0]
+    const blue = [0, 0, 255]
+    const buf = rgba([red, red, red, red, blue, blue, blue, blue])
+    const colors = extractPalette(buf, { count: 2 })
+    expect(new Set(colors)).toEqual(new Set(['#ff0000', '#0000ff']))
+  })
+
+  it('collapses near-identical colors into one swatch', () => {
+    const buf = rgba([
+      [255, 0, 0],
+      [254, 1, 0],
+      [255, 1, 1],
+      [253, 0, 1],
+    ])
+    expect(extractPalette(buf, { count: 4 })).toHaveLength(1)
+  })
+
+  it('never returns more than the requested count', () => {
+    const buf = rgba([
+      [255, 0, 0],
+      [0, 255, 0],
+      [0, 0, 255],
+      [255, 255, 0],
+      [0, 255, 255],
+      [255, 0, 255],
+    ])
+    expect(extractPalette(buf, { count: 3 }).length).toBeLessThanOrEqual(3)
+  })
+
+  it('ignores fully transparent pixels and returns [] when nothing is opaque', () => {
+    const buf = rgba([
+      [255, 0, 0, 0],
+      [0, 255, 0, 0],
+    ])
+    expect(extractPalette(buf)).toEqual([])
+  })
+
+  it('returns valid #rrggbb hex strings', () => {
+    const buf = rgba([
+      [120, 40, 200],
+      [30, 180, 90],
+      [200, 200, 20],
+    ])
+    for (const hex of extractPalette(buf, { count: 3 })) {
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/)
+    }
   })
 })

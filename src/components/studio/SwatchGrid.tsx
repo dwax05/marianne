@@ -4,7 +4,12 @@ import type {
   PointerEvent as ReactPointerEvent,
   RefObject,
 } from 'react'
-import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  Reorder,
+  useDragControls,
+  useReducedMotion,
+} from 'motion/react'
 import type { Palette, Role } from '../../color/types'
 import { ROLE_LABELS } from '../../color/types'
 import { normalizeHex, toOklch } from '../../color/convert'
@@ -137,25 +142,29 @@ export function SwatchGrid({
           aria-label="Palette colors"
           className="space-y-2"
         >
-          {orderedPalette.map((swatch) => (
-            <DraggableSwatch
-              key={swatch.id}
-              swatch={swatch}
-              constraintsRef={reorderBoundsRef}
-              reduceMotion={reduceMotion ?? false}
-              onChange={(hex) => onUpdate(swatch.id, hex)}
-              onRole={(role) => onRole(swatch.id, role)}
-              onKeyboardMove={(direction) =>
-                moveWithKeyboard(swatch.id, swatch.hex, direction)
-              }
-              onDragStart={() =>
-                setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
-              }
-              onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
-              onToggleLock={() => onToggleLock(swatch.id)}
-              onRemove={() => onRemove(swatch.id)}
-            />
-          ))}
+          {/* initial={false} skips the enter animation for swatches present on
+              first render, so only colors added later actually animate in. */}
+          <AnimatePresence initial={false}>
+            {orderedPalette.map((swatch) => (
+              <DraggableSwatch
+                key={swatch.id}
+                swatch={swatch}
+                constraintsRef={reorderBoundsRef}
+                reduceMotion={reduceMotion ?? false}
+                onChange={(hex) => onUpdate(swatch.id, hex)}
+                onRole={(role) => onRole(swatch.id, role)}
+                onKeyboardMove={(direction) =>
+                  moveWithKeyboard(swatch.id, swatch.hex, direction)
+                }
+                onDragStart={() =>
+                  setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
+                }
+                onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
+                onToggleLock={() => onToggleLock(swatch.id)}
+                onRemove={() => onRemove(swatch.id)}
+              />
+            ))}
+          </AnimatePresence>
         </Reorder.Group>
       </div>
       <p role="status" aria-live="polite" className="sr-only">
@@ -215,6 +224,9 @@ function DraggableSwatch({
       dragMomentum={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
       whileDrag={
         reduceMotion
           ? { zIndex: 20 }
@@ -225,7 +237,7 @@ function DraggableSwatch({
       }
       transition={
         reduceMotion
-          ? { layout: { duration: 0 } }
+          ? { layout: { duration: 0 }, duration: 0 }
           : {
               layout: {
                 type: 'spring',
@@ -233,6 +245,8 @@ function DraggableSwatch({
                 damping: 38,
                 mass: 0.7,
               },
+              duration: 0.24,
+              ease: [0.22, 1, 0.36, 1],
             }
       }
       className="group relative rounded-xl will-change-transform"
