@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+
+/* ---- marianne design tokens -------------------------------------------
+   Raw CSS custom properties on :root, bridged to Tailwind utilities via
+   `@theme inline` so the whole UI repaints if the tokens ever change.
+   Warm paper, studio materials and a burnt-sienna accent. ---------------- */
+:root {
+  --bg: #ded1b8; /* unbleached canvas */
+  --fg: #2d241c; /* charcoal-brown ink */
+  --surface: #f7f0e4; /* warm paper card */
+  --surface-2: #ede1cf; /* nested / input surface */
+  --line: #c9b79e; /* paper and wood edge */
+  --muted: #756858; /* secondary text, icons at rest */
+  --accent: #bd5736; /* burnt sienna */
+  --accent-fg: #ffffff; /* label on accent */
+  --shadow: rgba(85, 60, 40, 0.28); /* physical lift on paper */
+  --good: #347759; /* pass / healthy */
+  --warn: #ad721b; /* caution */
+  --bad: #bb4545; /* fail */
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+html {
+  background: var(--bg);
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars hidden globally for a cleaner tool feel. */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .artist-palette-board,
+  .paint-page-canvas,
+  .paint-cursor {
+    display: none;
+  }
+
+  body.paint-cursor-active {
+    cursor: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artist-palette-board canvas {
+    cursor: default;
+  }
+}
+
+body.paint-cursor-active {
+  cursor: none;
+}
+
+body.paint-cursor-active :is(a, button, input, select, textarea, [data-no-paint]) {
+  cursor: pointer;
+}
