@@ -26,7 +26,11 @@ export function ThemeToggle({ theme, onThemeToggle }: ThemeToggleProps) {
       aria-label={label}
       aria-pressed={dark}
       title={label}
-      className="shrink-0"
+      // Match the 3px keycap of the neighboring primary/surface buttons so the
+      // toggle reads as the same raised size (base IconButton is a flatter 2px).
+      // active:!shadow-none re-drops the keycap on press so it flattens instead
+      // of the shadow riding down with the button.
+      className="shrink-0 !shadow-[0_3px_0_rgb(var(--keycap)_/_0.22)] active:!translate-y-[3px] active:!shadow-none"
     >
       {dark ? <SunIcon /> : <MoonIcon />}
     </IconButton>

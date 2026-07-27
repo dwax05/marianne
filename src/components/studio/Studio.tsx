@@ -63,10 +63,15 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
               </motion.span>
             )}
           </AnimatePresence>
-          <Button variant="ghost" onClick={pal.undo} disabled={!pal.canUndo}>
+          <Button
+            variant="ghost"
+            className="h-8"
+            onClick={pal.undo}
+            disabled={!pal.canUndo}
+          >
             <UndoIcon /> Undo
           </Button>
-          <Button variant="surface" onClick={copyShare}>
+          <Button variant="surface" className="h-8" onClick={copyShare}>
             <LinkIcon /> Share
           </Button>
           <ThemeToggle theme={theme} onThemeToggle={onThemeToggle} />
