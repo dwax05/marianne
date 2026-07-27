@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { mixPaintPixel, toPaintRgb } from '../../color/paint'
 import { Button } from './Button'
 import { UndoIcon } from './icons'
+import type { Theme } from '../../theme'
 
 interface BrushPoint {
   x: number
@@ -39,7 +40,13 @@ export function PaintCanvasSessionProvider({ children }: { children: ReactNode }
   )
 }
 
-export function PaintCanvas({ color }: { color: string | null }) {
+export function PaintCanvas({
+  color,
+  theme,
+}: {
+  color: string | null
+  theme: Theme
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
   const redrawRef = useRef<(() => void) | null>(null)
@@ -299,7 +306,7 @@ export function PaintCanvas({ color }: { color: string | null }) {
       redrawRef.current = null
       updateCursorRef.current = null
     }
-  }, [session])
+  }, [session, theme])
 
   const clear = () => {
     session.segments.length = 0

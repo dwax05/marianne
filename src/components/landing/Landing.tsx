@@ -5,6 +5,8 @@ import { BalanceIcon, ContrastIcon, EyeIcon, SwatchesIcon } from '../ui/icons'
 import { SAMPLES } from '../../color/samples'
 import { ArtistPaletteBoard } from '../ui/ArtistPaletteBoard'
 import { PaintCanvas } from '../ui/PaintCanvas'
+import { ThemeToggle } from '../ui/ThemeToggle'
+import type { ThemeToggleProps } from '../ui/ThemeToggle'
 
 // The hero board is her Rainbow of Dreams — every color in one swirl.
 const HERO = SAMPLES[0]
@@ -36,7 +38,7 @@ const FEATURES = [
   },
 ]
 
-export function Landing() {
+export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
   const [activeSample, setActiveSample] = useState(HERO)
   const [selectedPaintId, setSelectedPaintId] = useState('')
   const paints = useMemo(
@@ -52,12 +54,15 @@ export function Landing() {
 
   return (
     <div className="relative isolate min-h-screen text-fg">
-      <PaintCanvas color={selectedPaint?.color ?? null} />
+      <PaintCanvas color={selectedPaint?.color ?? null} theme={theme} />
       <header className="relative z-10 mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <span className="text-lg font-semibold tracking-tight">marianne</span>
-        <a href="#/app">
-          <Button variant="primary">Open studio</Button>
-        </a>
+        <div className="flex items-center gap-2">
+          <a href="#/app">
+            <Button variant="primary">Open studio</Button>
+          </a>
+          <ThemeToggle theme={theme} onThemeToggle={onThemeToggle} />
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto max-w-5xl px-6">

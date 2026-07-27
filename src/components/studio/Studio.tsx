@@ -11,6 +11,8 @@ import { HarmonyPanel } from './HarmonyPanel'
 import { SuggestPanel } from './SuggestPanel'
 import { HarmonyCheckPanel } from './HarmonyCheckPanel'
 import { Button } from '../ui/Button'
+import { ThemeToggle } from '../ui/ThemeToggle'
+import type { ThemeToggleProps } from '../ui/ThemeToggle'
 import {
   BalanceIcon,
   ContrastIcon,
@@ -23,7 +25,7 @@ import {
 
 type Mode = 'analyze' | 'generate'
 
-export function Studio() {
+export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
   const pal = usePalette()
   const [mode, setMode] = useState<Mode>('analyze')
   const [copied, setCopied] = useState('')
@@ -64,6 +66,7 @@ export function Studio() {
           <Button variant="surface" onClick={copyShare}>
             <LinkIcon /> Share
           </Button>
+          <ThemeToggle theme={theme} onThemeToggle={onThemeToggle} />
         </div>
       </header>
 

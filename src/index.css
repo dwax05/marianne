@@ -5,6 +5,7 @@
    `@theme inline` so the whole UI repaints if the tokens ever change.
    Warm paper, studio materials and a burnt-sienna accent. ---------------- */
 :root {
+  --color-scheme: light;
   --bg: #ded1b8; /* unbleached canvas */
   --fg: #2d241c; /* charcoal-brown ink */
   --surface: #f7f0e4; /* warm paper card */
@@ -17,6 +18,22 @@
   --good: #347759; /* pass / healthy */
   --warn: #ad721b; /* caution */
   --bad: #bb4545; /* fail */
+}
+
+:root[data-theme='dark'] {
+  --color-scheme: dark;
+  --bg: #17130f; /* dimmed canvas */
+  --fg: #f1e7d7; /* warm chalk */
+  --surface: #251f19; /* dark paper card */
+  --surface-2: #332a21; /* nested / input surface */
+  --line: #5b4b3b; /* paper and wood edge */
+  --muted: #b8a690; /* secondary text, icons at rest */
+  --accent: #df7654; /* lifted sienna */
+  --accent-fg: #1e120d; /* label on accent */
+  --shadow: rgba(0, 0, 0, 0.48); /* physical lift on paper */
+  --good: #72bd92; /* pass / healthy */
+  --warn: #d7a44e; /* caution */
+  --bad: #e27575; /* fail */
 }
 
 @theme inline {
@@ -38,7 +55,7 @@
 
 html {
   background: var(--bg);
-  color-scheme: light;
+  color-scheme: var(--color-scheme);
 }
 
 html,
@@ -50,6 +67,7 @@ body,
 body {
   margin: 0;
   font-family: var(--font-sans);
+  background: var(--bg);
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
 }

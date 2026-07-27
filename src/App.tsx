@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Landing } from './components/landing/Landing'
 import { Studio } from './components/studio/Studio'
 import { PaintCanvasSessionProvider } from './components/ui/PaintCanvas'
+import { applyTheme } from './theme'
+import type { Theme } from './theme'
 
 /** Minimal hash router: '#/app...' => studio, everything else => landing. */
 function useRoute(): string {
@@ -15,9 +17,16 @@ function useRoute(): string {
   return hash
 }
 
-function App() {
+function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
   const hash = useRoute()
+  const [theme, setTheme] = useState(initialTheme)
   const view = hash.startsWith('#/app') ? 'app' : 'landing'
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    applyTheme(nextTheme)
+    setTheme(nextTheme)
+  }
+
   return (
     <PaintCanvasSessionProvider>
       <AnimatePresence mode="wait">
@@ -28,7 +37,11 @@ function App() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {view === 'app' ? <Studio /> : <Landing />}
+          {view === 'app' ? (
+            <Studio theme={theme} onThemeToggle={toggleTheme} />
+          ) : (
+            <Landing theme={theme} onThemeToggle={toggleTheme} />
+          )}
         </motion.div>
       </AnimatePresence>
     </PaintCanvasSessionProvider>
