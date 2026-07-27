@@ -63,7 +63,7 @@ export function ContrastPanel({ palette, onUpdate }: Props) {
             >
               <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className="inline-flex h-9 items-center rounded px-3 text-sm font-medium"
+                  className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium"
                   style={{ background: p.bg.hex, color: p.fg.hex }}
                 >
                   {ROLE_LABELS[p.fg.role]}
