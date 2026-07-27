@@ -110,7 +110,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
                   <Section
                     icon={<SparkleIcon />}
                     title="Smart palette suggestions"
-                    blurb="Personalized additions that fill structural gaps in your palette, including missing light and dark neutral anchors."
+                    blurb="Ask for a matching hue or fill structural gaps in your palette, including missing light and dark neutral anchors."
                   >
                     <SuggestPanel
                       palette={pal.palette}

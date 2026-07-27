@@ -16,7 +16,8 @@ palette is shareable by link.
 - **Balance** — OKLCH lightness spacing analysis and an even-ramp respacer.
 - **Harmony** — flags saturation/lightness outliers and generates harmonious
   palettes by hue rotation.
-- **Smart suggestions** — fills structural gaps (light/dark neutral anchors, tonal
+- **Smart suggestions** — fits a requested hue such as green to the palette's
+  visual weight, fills structural gaps (light/dark neutral anchors, tonal
   bridges), adds a palette-aware analogous harmony color, and guarantees an
   AA-passing color against a target background.
 - **Auto-suggested roles** — infers a light or dark palette interpretation, then

@@ -19,7 +19,11 @@ import {
   applyHarmonyFixes,
   suggestNeutral,
 } from './audit'
-import { suggestAdditions, suggestForRole } from './suggest'
+import {
+  suggestAdditions,
+  suggestForRole,
+  suggestWantedColor,
+} from './suggest'
 import { extractPalette } from './extract'
 import {
   applyRoleAssignments,
@@ -612,6 +616,134 @@ describe('suggestForRole', () => {
     const p = roled([['#888888', 'unset']])
     const primary = toOklch(suggestForRole(p, 'primary'))!
     expect(primary.c).toBeGreaterThan(0.09)
+  })
+})
+
+describe('suggestWantedColor', () => {
+  it('keeps the requested hue while matching the palette visual weight', () => {
+    const p = pal('#e5484d', '#3a7bd5')
+    const result = suggestWantedColor(p, 'green')
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+
+    const requested = toOklch('green')!
+    const matched = toOklch(result.suggestion.hex)!
+    const paletteColors = p.map((swatch) => toOklch(swatch.hex)!)
+    const averageLightness =
+      paletteColors.reduce((sum, color) => sum + color.l, 0) /
+      paletteColors.length
+
+    const hueDelta = Math.abs(requested.h - matched.h) % 360
+    expect(Math.min(hueDelta, 360 - hueDelta)).toBeLessThan(1)
+    expect(matched.l).toBeCloseTo(averageLightness, 1)
+    expect(matched.c).toBeGreaterThan(0.1)
+    expect(result.suggestion).toMatchObject({
+      kind: 'wanted-color',
+      role: 'accent',
+    })
+  })
+
+  it('reports when its matching color is already in the palette', () => {
+    const p = pal('#e5484d', '#3a7bd5')
+    const first = suggestWantedColor(p, 'green')
+    expect(first.status).toBe('ready')
+    if (first.status !== 'ready') return
+
+    const existing = {
+      id: 'matching-green',
+      hex: first.suggestion.hex,
+      role: first.suggestion.role,
+      locked: false,
+    }
+    const repeated = suggestWantedColor([...p, existing], 'green')
+
+    expect(repeated).toMatchObject({
+      status: 'already-present',
+      swatchId: 'matching-green',
+    })
+  })
+
+  it('adjusts lightness to meet requested background contrast without changing hue', () => {
+    const p: Palette = [
+      { id: 'bg', hex: '#ffffff', role: 'background', locked: false },
+      { id: 'accent', hex: '#f87171', role: 'accent', locked: false },
+    ]
+    const result = suggestWantedColor(p, {
+      color: 'green',
+      role: 'accent',
+      targetContrastBg: '#ffffff',
+      target: AA_NORMAL,
+    })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+
+    const requested = toOklch('green')!
+    const matched = toOklch(result.suggestion.hex)!
+    const hueDelta = Math.abs(requested.h - matched.h) % 360
+    expect(contrast(result.suggestion.hex, '#ffffff')).toBeGreaterThanOrEqual(
+      AA_NORMAL,
+    )
+    expect(Math.min(hueDelta, 360 - hueDelta)).toBeLessThan(1)
+    expect(result.suggestion.reason).toContain('contrast')
+  })
+
+  it('rejects requests that do not identify a chromatic hue', () => {
+    const result = suggestWantedColor(pal('#e5484d', '#3a7bd5'), 'gray')
+
+    expect(result).toMatchObject({
+      status: 'invalid',
+      message: expect.stringContaining('hue'),
+    })
+  })
+
+  it('respects light and dark accent roles while preserving the wanted hue', () => {
+    const p = pal('#e5484d', '#3a7bd5')
+    const light = suggestWantedColor(p, {
+      color: 'green',
+      role: 'light-accent',
+    })
+    const dark = suggestWantedColor(p, {
+      color: 'green',
+      role: 'dark-accent',
+    })
+
+    expect(light.status).toBe('ready')
+    expect(dark.status).toBe('ready')
+    if (light.status !== 'ready' || dark.status !== 'ready') return
+
+    expect(toOklch(light.suggestion.hex)!.l).toBeGreaterThanOrEqual(0.8)
+    expect(toOklch(dark.suggestion.hex)!.l).toBeLessThanOrEqual(0.45)
+    expect(light.suggestion.role).toBe('light-accent')
+    expect(dark.suggestion.role).toBe('dark-accent')
+  })
+
+  it('does not claim success when contrast collapses the requested hue', () => {
+    const result = suggestWantedColor(pal('#f87171'), {
+      color: 'green',
+      targetContrastBg: '#ffffff',
+      target: 21,
+    })
+
+    expect(result.status).toBe('unachievable')
+  })
+
+  it('uses brand colors before unrelated chromatic roles as its reference', () => {
+    const p: Palette = [
+      { id: 'primary', hex: '#e5484d', role: 'primary', locked: false },
+      { id: 'surface-a', hex: '#ffff00', role: 'background', locked: false },
+      { id: 'surface-b', hex: '#00ffff', role: 'background', locked: false },
+    ]
+    const result = suggestWantedColor(p, { color: 'green', role: 'hero' })
+
+    expect(result.status).toBe('ready')
+    if (result.status !== 'ready') return
+
+    expect(toOklch(result.suggestion.hex)!.l).toBeCloseTo(
+      toOklch('#e5484d')!.l,
+      1,
+    )
   })
 })
 

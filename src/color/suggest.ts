@@ -1,4 +1,4 @@
-import { converter } from 'culori'
+import { converter, differenceCiede2000 } from 'culori'
 import type { Hex, Oklch, Palette, Role } from './types'
 import { SKELETON_HEX } from './types'
 import { analyzeBalance } from './balance'
@@ -9,8 +9,11 @@ import {
   representativeChromaticColor,
   suggestNeutral,
 } from './audit'
-import { toHex, toOklch } from './convert'
+import { normalizeHex, toHex, toOklch } from './convert'
 import { AA_NORMAL, contrast, suggestContrastFix } from './contrast'
+
+const perceptualDifference = differenceCiede2000()
+const SAME_COLOR_DIFFERENCE = 6
 
 export interface Suggestion {
   kind:
@@ -18,11 +21,150 @@ export interface Suggestion {
     | 'dark-neutral'
     | 'lightness-gap'
     | 'harmony-color'
+    | 'wanted-color'
     | 'contrast'
   label: string
   hex: Hex
   reason: string
   role: Role
+}
+
+export interface WantedColorRequest {
+  color: string
+  role?: WantedColorRole
+  targetContrastBg?: Hex
+  target?: number
+}
+
+export type WantedColorRole = Exclude<Role, 'unset'>
+
+const WANTED_COLOR_BRAND_ROLES: Role[] = [
+  'primary',
+  'hero',
+  'accent',
+  'light-accent',
+  'dark-accent',
+]
+
+export type WantedColorSuggestion = Suggestion & {
+  kind: 'wanted-color'
+  role: WantedColorRole
+}
+
+export type WantedColorResult =
+  | { status: 'ready'; suggestion: WantedColorSuggestion }
+  | { status: 'already-present'; swatchId: string; message: string }
+  | { status: 'invalid'; message: string }
+  | { status: 'unachievable'; message: string }
+
+/**
+ * Preserve a requested color's hue while borrowing the visual weight of the
+ * current palette. A string is shorthand for the common accent-color request.
+ */
+export function suggestWantedColor(
+  palette: Palette,
+  wanted: string | WantedColorRequest,
+): WantedColorResult {
+  const request = typeof wanted === 'string' ? { color: wanted } : wanted
+  const normalized = normalizeHex(request.color)
+  const requested = normalized ? toOklch(normalized) : null
+  if (!requested) {
+    return {
+      status: 'invalid',
+      message: `“${request.color}” is not a recognized color.`,
+    }
+  }
+  if (requested.c < 0.001) {
+    return {
+      status: 'invalid',
+      message: `“${request.color}” does not identify a chromatic hue to match.`,
+    }
+  }
+
+  const role = request.role ?? 'accent'
+  const measured = palette
+    .map((swatch) => ({ swatch, color: toOklch(swatch.hex) }))
+    .filter(
+      (
+        entry,
+      ): entry is { swatch: Palette[number]; color: Oklch } =>
+        entry.color !== null && entry.color.c > NEUTRAL_CHROMA_MAX,
+    )
+  const sameRole = measured.filter(({ swatch }) => swatch.role === role)
+  const brandColors = measured.filter(({ swatch }) =>
+    WANTED_COLOR_BRAND_ROLES.includes(swatch.role),
+  )
+  const references = sameRole.length
+    ? sameRole
+    : brandColors.length
+      ? brandColors
+      : measured
+  const paletteLightness = references.length
+    ? median(references.map(({ color }) => color.l))
+    : ACCENT_FALLBACK.l
+  const paletteChroma = references.length
+    ? median(references.map(({ color }) => color.c))
+    : ACCENT_FALLBACK.c
+  const lightness = wantedRoleLightness(role, paletteLightness)
+  const chroma = wantedRoleChroma(role, paletteChroma)
+  let hex = toHex({ l: lightness, c: chroma, h: requested.h })
+  const requestedLabel = request.color.trim()
+  let contrastReason = ''
+  if (request.targetContrastBg) {
+    const background = normalizeHex(request.targetContrastBg)
+    const target = request.target ?? AA_NORMAL
+    if (!background || target < 1 || target > 21) {
+      return {
+        status: 'invalid',
+        message: 'The contrast target is not valid.',
+      }
+    }
+    const fix = suggestContrastFix(hex, background, target)
+    if (!fix || fix.ratio < target) {
+      return {
+        status: 'unachievable',
+        message: `No matching ${requestedLabel} can reach the requested contrast.`,
+      }
+    }
+    hex = fix.hex
+    contrastReason = ` It reaches ${fix.ratio.toFixed(1)}:1 contrast against ${background}.`
+  }
+  const displayed = toOklch(hex)
+  if (
+    !displayed ||
+    displayed.c < 0.01 ||
+    circularHueDistance(displayed.h, requested.h) > 3
+  ) {
+    return {
+      status: 'unachievable',
+      message: `No displayable matching ${requestedLabel} can satisfy those constraints without losing its hue.`,
+    }
+  }
+  const duplicate = palette.find((swatch) => {
+    const existing = normalizeHex(swatch.hex)
+    return (
+      existing !== null &&
+      perceptualDifference(existing, hex) < SAME_COLOR_DIFFERENCE
+    )
+  })
+  if (duplicate) {
+    return {
+      status: 'already-present',
+      swatchId: duplicate.id,
+      message: `A matching ${requestedLabel} is already in the palette.`,
+    }
+  }
+
+  return {
+    status: 'ready',
+    suggestion: {
+      kind: 'wanted-color',
+      label: `Matching ${requestedLabel}`,
+      hex,
+      reason: `Keeps the requested ${requestedLabel} hue while matching this palette’s typical lightness and chroma.${contrastReason}`,
+      role,
+    },
+  }
 }
 
 /**
@@ -332,4 +474,45 @@ function bridgeRole(l: number, c: number): Role {
   if (l >= 0.8) return 'light-accent'
   if (l <= 0.5) return 'dark-accent'
   return 'accent'
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2
+}
+
+function wantedRoleLightness(
+  role: WantedColorRole,
+  paletteLightness: number,
+): number {
+  switch (role) {
+    case 'background':
+    case 'light-neutral':
+      return Math.max(paletteLightness, 0.9)
+    case 'light-accent':
+      return Math.max(paletteLightness, 0.82)
+    case 'text':
+    case 'dark-neutral':
+      return Math.min(paletteLightness, 0.3)
+    case 'dark-accent':
+      return Math.min(paletteLightness, 0.42)
+    default:
+      return paletteLightness
+  }
+}
+
+function wantedRoleChroma(role: WantedColorRole, paletteChroma: number): number {
+  switch (role) {
+    case 'background':
+    case 'text':
+    case 'neutral':
+    case 'light-neutral':
+    case 'dark-neutral':
+      return Math.min(paletteChroma, 0.035)
+    default:
+      return paletteChroma
+  }
 }
