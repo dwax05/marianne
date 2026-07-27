@@ -20,6 +20,9 @@ export interface Swatch {
   locked: boolean
 }
 
+/** Default color for a freshly added, unstyled swatch (the gray "skeleton"). */
+export const SKELETON_HEX = '#888888'
+
 export type Palette = Swatch[]
 
 /** Roles that sit ON a background and therefore need contrast against it. */

@@ -1,5 +1,6 @@
 import { converter } from 'culori'
-import type { Hex, Palette, Role } from './types'
+import type { Hex, Oklch, Palette, Role } from './types'
+import { SKELETON_HEX } from './types'
 import { analyzeBalance } from './balance'
 import {
   analyzeCoverage,
@@ -132,6 +133,92 @@ export function suggestAdditions(
   }
 
   return suggestions
+}
+
+/** Brand-neutral fallback accent used when the palette has no chromatic anchor. */
+const ACCENT_FALLBACK: Oklch = { l: 0.58, c: 0.13, h: 40 }
+
+/**
+ * Propose a single color appropriate for `role`, tinted by the rest of the
+ * palette. Used to turn a freshly-added skeleton swatch into a real starting
+ * point the moment a role is chosen: neutrals become quiet palette-tinted
+ * anchors, brand/accent roles become a harmonious analogous color, and
+ * foreground roles are nudged to clear AA against the background when there is
+ * one. Pure — takes the current palette, returns a hex.
+ */
+export function suggestForRole(palette: Palette, role: Role): Hex {
+  const bg = palette.find((swatch) => swatch.role === 'background')?.hex
+  const readable = (hex: Hex): Hex => {
+    if (!bg || contrast(hex, bg) >= AA_NORMAL) return hex
+    const fix = suggestContrastFix(hex, bg, AA_NORMAL)
+    return fix && fix.ratio >= AA_NORMAL ? fix.hex : hex
+  }
+
+  switch (role) {
+    case 'background':
+    case 'light-neutral':
+      return suggestNeutral(palette, 'light')
+    case 'dark-neutral':
+      return suggestNeutral(palette, 'dark')
+    case 'text':
+      return readable(suggestNeutral(palette, 'dark'))
+    case 'neutral': {
+      const anchor = representativeChromaticColor(palette)
+      return toHex({ l: 0.6, c: 0.02, h: anchor?.color.h ?? 45 })
+    }
+    case 'primary':
+    case 'hero':
+    case 'accent':
+    case 'light-accent':
+    case 'dark-accent': {
+      const anchor = representativeChromaticColor(palette)
+      const seed = anchor?.color ?? ACCENT_FALLBACK
+      const h = anchor ? analogousHue(palette, seed.h) : seed.h
+      const c = Math.max(seed.c, 0.1)
+      const l =
+        role === 'light-accent'
+          ? Math.max(seed.l, 0.82)
+          : role === 'dark-accent'
+            ? Math.min(seed.l, 0.42)
+            : seed.l
+      const hex = toHex({ l, c, h })
+      // Light/dark accents are decorative variants — keep their tonal intent;
+      // the main brand/accent roles sit on the background, so keep them legible.
+      return role === 'light-accent' || role === 'dark-accent'
+        ? hex
+        : readable(hex)
+    }
+    case 'unset':
+    default:
+      return SKELETON_HEX
+  }
+}
+
+/**
+ * Rotate `baseHue` by ±30° toward whichever analogous side is least crowded by
+ * the palette's existing chromatic hues.
+ */
+function analogousHue(palette: Palette, baseHue: number): number {
+  const hues = palette
+    .map((swatch) => toOklch(swatch.hex))
+    .filter(
+      (color): color is Oklch => color !== null && color.c > NEUTRAL_CHROMA_MAX,
+    )
+    .map((color) => color.h)
+  const offsets = [-ANALOGOUS_HUE_STEP, ANALOGOUS_HUE_STEP] as const
+  let selected = offsets[0]
+  let bestSeparation = -1
+  for (const offset of offsets) {
+    const hue = (baseHue + offset + 360) % 360
+    const separation = hues.length
+      ? Math.min(...hues.map((existing) => circularHueDistance(hue, existing)))
+      : Number.POSITIVE_INFINITY
+    if (separation > bestSeparation + 1e-9) {
+      selected = offset
+      bestSeparation = separation
+    }
+  }
+  return (baseHue + selected + 360) % 360
 }
 
 const toHslColor = converter('hsl')

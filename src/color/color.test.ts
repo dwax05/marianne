@@ -19,7 +19,7 @@ import {
   applyHarmonyFixes,
   suggestNeutral,
 } from './audit'
-import { suggestAdditions } from './suggest'
+import { suggestAdditions, suggestForRole } from './suggest'
 import { extractPalette } from './extract'
 import {
   applyRoleAssignments,
@@ -566,6 +566,52 @@ describe('palette audit', () => {
     expect(analyzeHarmony(withBridge)).toHaveLength(0)
     // Adding the bridge must not trip the Balance warning (unevenness < 0.05).
     expect(analyzeBalance(withBridge).unevenness).toBeLessThan(0.05)
+  })
+})
+
+describe('suggestForRole', () => {
+  const NEUTRAL_CHROMA_MAX = 0.04
+  const roled = (
+    entries: [hex: string, role: Palette[number]['role']][],
+  ): Palette =>
+    entries.map(([hex, role], i) => ({ id: `s${i}`, hex, role, locked: false }))
+
+  it('returns quiet neutrals for neutral roles', () => {
+    const p = roled([['#68b192', 'primary']])
+    const light = toOklch(suggestForRole(p, 'light-neutral'))!
+    const dark = toOklch(suggestForRole(p, 'dark-neutral'))!
+    expect(light.l).toBeGreaterThanOrEqual(0.88)
+    expect(light.c).toBeLessThanOrEqual(NEUTRAL_CHROMA_MAX)
+    expect(dark.l).toBeLessThanOrEqual(0.3)
+    expect(dark.c).toBeLessThanOrEqual(NEUTRAL_CHROMA_MAX)
+  })
+
+  it('returns a chromatic color for brand/accent roles', () => {
+    const p = roled([['#68b192', 'accent']])
+    const primary = toOklch(suggestForRole(p, 'primary'))!
+    expect(primary.c).toBeGreaterThan(0.09)
+  })
+
+  it('makes light accents lighter than dark accents', () => {
+    const p = roled([['#68b192', 'accent']])
+    const light = toOklch(suggestForRole(p, 'light-accent'))!
+    const dark = toOklch(suggestForRole(p, 'dark-accent'))!
+    expect(light.l).toBeGreaterThan(dark.l)
+  })
+
+  it('nudges text to clear AA against the palette background', () => {
+    const p = roled([
+      ['#ffffff', 'background'],
+      ['#68b192', 'accent'],
+    ])
+    const text = suggestForRole(p, 'text')
+    expect(contrast(text, '#ffffff')).toBeGreaterThanOrEqual(AA_NORMAL)
+  })
+
+  it('falls back to a warm accent when no chromatic anchor exists', () => {
+    const p = roled([['#888888', 'unset']])
+    const primary = toOklch(suggestForRole(p, 'primary'))!
+    expect(primary.c).toBeGreaterThan(0.09)
   })
 })
 

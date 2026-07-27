@@ -4,12 +4,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   RefObject,
 } from 'react'
-import {
-  AnimatePresence,
-  Reorder,
-  useDragControls,
-  useReducedMotion,
-} from 'motion/react'
+import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
 import type { Palette, Role } from '../../color/types'
 import { ROLE_LABELS } from '../../color/types'
 import { normalizeHex, toOklch } from '../../color/convert'
@@ -19,6 +14,8 @@ import { RoleSuggestReview } from './RoleSuggestReview'
 import {
   CheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CopyIcon,
   DropperIcon,
   GripIcon,
@@ -27,6 +24,8 @@ import {
   TrashIcon,
   UnlockIcon,
 } from '../ui/icons'
+
+const PAGE_SIZE = 8
 
 interface EyeDropperResult {
   sRGBHex: string
@@ -79,10 +78,21 @@ export function SwatchGrid({
   const [orderedPalette, setOrderedPalette] = useState(palette)
   const orderedPaletteRef = useRef(palette)
   const [moveAnnouncement, setMoveAnnouncement] = useState('')
+  const [page, setPage] = useState(0)
+  const prevLenRef = useRef(palette.length)
 
   useEffect(() => {
     orderedPaletteRef.current = palette
     setOrderedPalette(palette)
+    const pageCount = Math.max(1, Math.ceil(palette.length / PAGE_SIZE))
+    // A just-added color is appended at the end — jump to its page so the new
+    // swatch (and its role dropdown) stays in view. Otherwise clamp in range.
+    setPage((current) =>
+      palette.length > prevLenRef.current
+        ? pageCount - 1
+        : Math.min(current, pageCount - 1),
+    )
+    prevLenRef.current = palette.length
   }, [palette])
 
   const updateOrder = (next: Palette) => {
@@ -117,13 +127,32 @@ export function SwatchGrid({
     next[from] = displaced
     updateOrder(next)
     commitOrder(id, hex)
+    // Keep the moved swatch visible if it crossed a page boundary.
+    setPage(Math.floor(to / PAGE_SIZE))
   }
+
+  const pageCount = Math.max(1, Math.ceil(orderedPalette.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount - 1)
+  const start = currentPage * PAGE_SIZE
+  const pageItems = orderedPalette.slice(start, start + PAGE_SIZE)
+
+  const reorderPage = (nextPage: Palette) =>
+    updateOrder([
+      ...orderedPalette.slice(0, start),
+      ...nextPage,
+      ...orderedPalette.slice(start + PAGE_SIZE),
+    ])
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
           Palette
+          {palette.length > 0 && (
+            <span className="ml-1.5 tabular-nums text-muted/60">
+              {palette.length}
+            </span>
+          )}
         </h2>
         <Button variant="primary" onClick={onAdd}>
           <PlusIcon /> Add color
@@ -135,38 +164,63 @@ export function SwatchGrid({
       <div ref={reorderBoundsRef} className="relative">
         <Reorder.Group
           axis="y"
-          values={orderedPalette}
-          onReorder={updateOrder}
+          values={pageItems}
+          onReorder={reorderPage}
           as="div"
           role="list"
           aria-label="Palette colors"
           className="space-y-2"
         >
-          {/* initial={false} skips the enter animation for swatches present on
-              first render, so only colors added later actually animate in. */}
-          <AnimatePresence initial={false}>
-            {orderedPalette.map((swatch) => (
-              <DraggableSwatch
-                key={swatch.id}
-                swatch={swatch}
-                constraintsRef={reorderBoundsRef}
-                reduceMotion={reduceMotion ?? false}
-                onChange={(hex) => onUpdate(swatch.id, hex)}
-                onRole={(role) => onRole(swatch.id, role)}
-                onKeyboardMove={(direction) =>
-                  moveWithKeyboard(swatch.id, swatch.hex, direction)
-                }
-                onDragStart={() =>
-                  setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
-                }
-                onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
-                onToggleLock={() => onToggleLock(swatch.id)}
-                onRemove={() => onRemove(swatch.id)}
-              />
-            ))}
-          </AnimatePresence>
+          {/* No AnimatePresence: an exiting item held in the tree while it is
+              already dropped from the sliced `values` breaks Reorder's layout
+              projection (stranding items low). Reorder.Item's own `layout`
+              slides survivors up on delete and settles new pages in place. */}
+          {pageItems.map((swatch) => (
+            <DraggableSwatch
+              key={swatch.id}
+              swatch={swatch}
+              constraintsRef={reorderBoundsRef}
+              reduceMotion={reduceMotion ?? false}
+              onChange={(hex) => onUpdate(swatch.id, hex)}
+              onRole={(role) => onRole(swatch.id, role)}
+              onKeyboardMove={(direction) =>
+                moveWithKeyboard(swatch.id, swatch.hex, direction)
+              }
+              onDragStart={() =>
+                setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
+              }
+              onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
+              onToggleLock={() => onToggleLock(swatch.id)}
+              onRemove={() => onRemove(swatch.id)}
+            />
+          ))}
         </Reorder.Group>
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between gap-2">
+          <IconButton
+            onClick={() => setPage(Math.max(0, currentPage - 1))}
+            disabled={currentPage === 0}
+            title="Previous colors"
+            className="h-7 w-7"
+          >
+            <ChevronLeftIcon width={14} height={14} />
+          </IconButton>
+          <span className="text-xs tabular-nums text-muted">
+            {currentPage + 1} / {pageCount}
+          </span>
+          <IconButton
+            onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
+            disabled={currentPage === pageCount - 1}
+            title="More colors"
+            className="h-7 w-7"
+          >
+            <ChevronRightIcon width={14} height={14} />
+          </IconButton>
+        </div>
+      )}
+
       <p role="status" aria-live="polite" className="sr-only">
         {moveAnnouncement}
       </p>
@@ -224,9 +278,8 @@ function DraggableSwatch({
       dragMomentum={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      initial={reduceMotion ? false : { opacity: 0, y: -8 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
-      exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
       whileDrag={
         reduceMotion
           ? { zIndex: 20 }

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Palette, Role, Swatch } from '../color/types'
+import { SKELETON_HEX } from '../color/types'
 import type { RoleAssignment } from '../color/roles'
 import { applyRoleAssignments } from '../color/roles'
+import { suggestForRole } from '../color/suggest'
 import {
   decodePalette,
   encodePalette,
@@ -85,7 +87,7 @@ export function usePalette(): UsePalette {
   )
 
   const addSwatch = useCallback(
-    (hex = '#888888', role: Role = 'unset') => {
+    (hex = SKELETON_HEX, role: Role = 'unset') => {
       const s = makeSwatch(hex, role)
       if (s) commit([...palette, s])
     },
@@ -111,7 +113,18 @@ export function usePalette(): UsePalette {
 
   const setRole = useCallback(
     (id: string, role: Role) => {
-      commit(palette.map((s) => (s.id === id ? { ...s, role } : s)))
+      commit(
+        palette.map((s) => {
+          if (s.id !== id) return s
+          // A freshly-added swatch is still the gray skeleton — the moment it
+          // gets a real role, fill in a palette-tinted color for that role.
+          const hex =
+            s.hex === SKELETON_HEX && role !== 'unset'
+              ? suggestForRole(palette, role)
+              : s.hex
+          return { ...s, role, hex }
+        }),
+      )
     },
     [palette, commit],
   )
