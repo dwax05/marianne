@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Landing } from './components/landing/Landing'
@@ -25,6 +25,11 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
   const hash = useRoute()
   const [theme, setTheme] = useState(initialTheme)
   const view = hash.startsWith('#/app') ? 'app' : 'landing'
+  // Tracks the in-flight theme transition so overlapping toggles don't fight:
+  // an older transition's `finished` handler must not strip `theme-transition`
+  // (which disables the default cross-fade) off a newer, still-running one.
+  const activeTransition = useRef<ViewTransition | null>(null)
+  const transitionSeq = useRef(0)
   const toggleTheme = (origin: ThemeTransitionOrigin) => {
     const nextTheme = theme === 'light' ? 'dark' : 'light'
     const updateTheme = () => {
@@ -40,12 +45,18 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
       return
     }
 
+    // Finish any in-flight transition instantly before capturing a new one, so
+    // we never stack two animations (which flashes on rapid toggling).
+    activeTransition.current?.skipTransition()
+
     const root = document.documentElement
     root.classList.add('theme-transition')
+    const seq = ++transitionSeq.current
 
     const transition = document.startViewTransition(() => {
       flushSync(updateTheme)
     })
+    activeTransition.current = transition
 
     void transition.ready
       .then(() => {
@@ -73,10 +84,12 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
         // A skipped transition still leaves the newly selected theme applied.
       })
 
-    void transition.finished.then(
-      () => root.classList.remove('theme-transition'),
-      () => root.classList.remove('theme-transition'),
-    )
+    void transition.finished.finally(() => {
+      // Only the latest transition owns the class + ref; a stale one bails out.
+      if (transitionSeq.current !== seq) return
+      root.classList.remove('theme-transition')
+      activeTransition.current = null
+    })
   }
 
   return (
