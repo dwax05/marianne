@@ -184,7 +184,7 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.3, delay: i * 0.05 }}
-              className="rounded-2xl border border-line/40 bg-surface p-6 shadow-lg shadow-[#7d684f]/15"
+              className="rounded-2xl border border-line/40 bg-surface p-6 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)]"
             >
               <div className="mb-4 flex overflow-hidden rounded-lg">
                 {f.swatch.map((c) => (

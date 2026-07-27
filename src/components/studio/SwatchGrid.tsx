@@ -329,7 +329,7 @@ function Card({
   const light = (toOklch(hex)?.l ?? 0.5) > 0.6
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-line/50 bg-surface p-2 shadow-lg shadow-[#7d684f]/15 transition-[background-color,border-color,box-shadow] duration-150 group-hover:border-accent/60 group-hover:bg-surface-2/60 group-hover:shadow-xl group-hover:shadow-[#7d684f]/25">
+    <div className="flex items-center gap-2 rounded-xl border border-line/50 bg-surface p-2 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)] transition-[background-color,border-color,box-shadow] duration-150 group-hover:border-accent/60 group-hover:bg-surface-2/60 group-hover:shadow-xl group-hover:shadow-[color:rgb(var(--card-shadow)_/_0.25)]">
       <div className="relative h-11 w-11 shrink-0">
         <Button
           variant="paint"

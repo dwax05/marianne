@@ -15,6 +15,8 @@
   --accent: #bd5736; /* burnt sienna */
   --accent-fg: #ffffff; /* label on accent */
   --shadow: rgba(85, 60, 40, 0.28); /* physical lift on paper */
+  --keycap: 91 62 39; /* warm-brown keycap edge (rgb channels) */
+  --card-shadow: 125 104 79; /* soft taupe card drop (rgb channels) */
   --good: #347759; /* pass / healthy */
   --warn: #ad721b; /* caution */
   --bad: #bb4545; /* fail */
@@ -32,6 +34,8 @@
   --accent: #df7654; /* lifted sienna */
   --accent-fg: #1e120d; /* label on accent */
   --shadow: rgba(0, 0, 0, 0.48); /* physical lift on paper */
+  --keycap: 0 0 0; /* keycap edge goes to black so it reads as depth, not glow */
+  --card-shadow: 0 0 0; /* card drop goes to black in the dark */
   --good: #72bd92; /* pass / healthy */
   --warn: #d7a44e; /* caution */
   --bad: #e27575; /* fail */

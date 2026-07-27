@@ -191,7 +191,7 @@ function HealthHeader({ health }: { health: ReturnType<typeof paletteHealth> }) 
         ? 'text-warn'
         : 'text-bad'
   return (
-    <div className="rounded-2xl border border-line/40 bg-surface p-4 shadow-lg shadow-[#7d684f]/15">
+    <div className="rounded-2xl border border-line/40 bg-surface p-4 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)]">
       <div className="flex items-center gap-4">
         <div className={`text-4xl font-bold tabular-nums ${tone}`}>
           {health.score}
@@ -241,7 +241,7 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-2xl border border-line/40 bg-surface p-4 shadow-lg shadow-[#7d684f]/15">
+    <section className="rounded-2xl border border-line/40 bg-surface p-4 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)]">
       <div className="flex items-center gap-2 text-accent">
         {icon}
         <h2 className="text-sm font-semibold text-fg">{title}</h2>
