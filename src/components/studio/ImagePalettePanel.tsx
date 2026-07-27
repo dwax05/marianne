@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import type { DragEvent as ReactDragEvent } from 'react'
 import type { Palette } from '../../color/types'
 import { extractPalette } from '../../color/extract'
@@ -13,28 +13,36 @@ interface Props {
 
 /** Longest edge the source image is downscaled to before sampling pixels. */
 const MAX_DIM = 128
-const MIN_COLORS = 4
-const MAX_COLORS = 8
+const COLOR_COUNTS = [4, 5, 6, 7, 8] as const
 
 /**
  * Source a palette from a photo or artwork. The image never leaves the device:
  * it's drawn to a downscaled offscreen canvas, its pixels read locally, and
- * `extractPalette` (pure) pulls the dominant colours out. Re-extraction on the
- * colour-count slider is cheap because the sampled buffer is kept in state.
+ * `extractPalette` (pure) pulls the dominant colours out. The sampled buffer is
+ * kept in state so each available palette size can be previewed together.
  */
 export function ImagePalettePanel({ onReplace, onAppend }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const objectUrlRef = useRef<string>('')
+  const pickerName = useId()
   const [preview, setPreview] = useState('')
   const [imageData, setImageData] = useState<Uint8ClampedArray | null>(null)
   const [count, setCount] = useState(6)
   const [error, setError] = useState('')
   const [dragging, setDragging] = useState(false)
 
-  const colors = useMemo(
-    () => (imageData ? extractPalette(imageData, { count }) : []),
-    [imageData, count],
+  const paletteOptions = useMemo(
+    () =>
+      imageData
+        ? COLOR_COUNTS.map((optionCount) => ({
+            count: optionCount,
+            colors: extractPalette(imageData, { count: optionCount }),
+          }))
+        : [],
+    [imageData],
   )
+  const colors =
+    paletteOptions.find((option) => option.count === count)?.colors ?? []
 
   const toPalette = (hexes: string[]): Palette =>
     hexes.map((h) => makeSwatch(h)).filter((s): s is Palette[number] => !!s)
@@ -101,41 +109,74 @@ export function ImagePalettePanel({ onReplace, onAppend }: Props) {
       {error && <p className="text-xs text-bad">{error}</p>}
 
       {preview && (
-        <div className="flex items-start gap-3">
+        <div className="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
           <img
             src={preview}
             alt="Source for palette extraction"
-            className="h-16 w-16 shrink-0 rounded-lg border border-line/50 object-cover"
+            className="h-32 w-full rounded-lg border border-line/50 object-cover sm:h-full sm:min-h-60"
           />
-          <div className="min-w-0 flex-1 space-y-2">
-            <label className="flex items-center gap-2 text-xs text-muted">
-              Colors
-              <input
-                type="range"
-                min={MIN_COLORS}
-                max={MAX_COLORS}
-                value={count}
-                onChange={(e) => setCount(Number(e.target.value))}
-                className="flex-1 accent-accent"
-                aria-label="Number of colors to extract"
-              />
-              <span className="tabular-nums text-fg">{count}</span>
-            </label>
-            <div className="flex overflow-hidden rounded-lg">
-              {colors.length === 0 ? (
-                <span className="h-9 flex-1 bg-surface-2" />
-              ) : (
-                colors.map((hex, i) => (
-                  <span
-                    key={i}
-                    className="h-9 flex-1"
-                    style={{ background: hex }}
-                    title={hex}
-                  />
-                ))
-              )}
+          <fieldset className="min-w-0">
+            <legend className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">
+              Choose a palette
+            </legend>
+            <div className="space-y-1.5">
+              {paletteOptions.map((option) => {
+                const selected = option.count === count
+                return (
+                  <label key={option.count} className="block cursor-pointer">
+                    <input
+                      type="radio"
+                      name={pickerName}
+                      value={option.count}
+                      checked={selected}
+                      onChange={() => setCount(option.count)}
+                      className="peer sr-only"
+                      aria-label={`${option.count} colors`}
+                    />
+                    <span
+                      className={`flex min-h-11 items-center gap-2 rounded-lg border p-1.5 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg ${
+                        selected
+                          ? 'border-accent bg-surface-2/70'
+                          : 'border-line/50 hover:border-accent/50 hover:bg-surface-2/30'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                          selected ? 'border-accent' : 'border-line'
+                        }`}
+                      >
+                        {selected && (
+                          <span className="h-2 w-2 rounded-full bg-accent" />
+                        )}
+                      </span>
+                      <span
+                        className={`w-3 text-xs tabular-nums ${
+                          selected ? 'text-fg' : 'text-muted'
+                        }`}
+                      >
+                        {option.count}
+                      </span>
+                      <span className="flex h-8 min-w-0 flex-1 overflow-hidden rounded-md">
+                        {option.colors.length === 0 ? (
+                          <span className="flex-1 bg-surface-2" />
+                        ) : (
+                          option.colors.map((hex, index) => (
+                            <span
+                              key={`${hex}-${index}`}
+                              className="flex-1"
+                              style={{ background: hex }}
+                              title={hex}
+                            />
+                          ))
+                        )}
+                      </span>
+                    </span>
+                  </label>
+                )
+              })}
             </div>
-          </div>
+          </fieldset>
         </div>
       )}
 

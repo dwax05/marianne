@@ -423,27 +423,6 @@ function drawCanvasTexture(
     drawCanvasThread(ctx, y + 0.65, width, true, y * 0.81, threadLight)
   }
 
-  // Occasional short fibres break up the uniform weave. They are deliberately
-  // sparse and low-contrast so they disappear behind content and paint.
-  ctx.lineCap = 'round'
-  ctx.lineWidth = 0.55
-  ctx.strokeStyle = dark
-    ? 'rgba(236, 220, 193, 0.045)'
-    : 'rgba(104, 82, 56, 0.055)'
-  for (let y = 37; y < height; y += 83) {
-    for (let x = 29 + (y % 4) * 13; x < width; x += 137) {
-      const drift = Math.sin(x * 0.21 + y * 0.17)
-      ctx.beginPath()
-      ctx.moveTo(x, y + drift * 2)
-      ctx.quadraticCurveTo(
-        x + 7,
-        y - drift * 2.5,
-        x + 14 + drift * 3,
-        y + drift,
-      )
-      ctx.stroke()
-    }
-  }
   ctx.restore()
 
   // Subtle edge depth suggests stretched canvas while keeping the center calm.
