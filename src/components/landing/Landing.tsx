@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { motion } from 'motion/react'
 import { Button } from '../ui/Button'
 import { BalanceIcon, ContrastIcon, EyeIcon, SwatchesIcon } from '../ui/icons'
@@ -52,9 +53,22 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
     setSelectedPaintId('')
   }
 
+  const scrollToPaints = (event: MouseEvent<HTMLAnchorElement>) => {
+    const section = document.getElementById('colors-trap')
+    if (!section) return
+
+    event.preventDefault()
+    section.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ? 'auto'
+        : 'smooth',
+      block: 'start',
+    })
+  }
+
   return (
     <div className="relative isolate min-h-screen text-fg">
-      <PaintCanvas color={selectedPaint?.color ?? null} theme={theme} />
+      <PaintCanvas color={selectedPaint?.color ?? null} />
       <header className="relative z-10 mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <span className="text-lg font-semibold tracking-tight">marianne</span>
         <div className="flex items-center gap-2">
@@ -105,7 +119,7 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
                   Open the studio
                 </Button>
               </a>
-              <a href="#colors-trap">
+              <a href="#colors-trap" onClick={scrollToPaints}>
                 <Button variant="surface" className="px-6 py-3 text-base">
                   Choose paints
                 </Button>

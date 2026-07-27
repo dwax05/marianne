@@ -8,6 +8,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./src/test/setup.ts'],
+    environmentOptions: {
+      jsdom: { url: 'http://localhost/' },
+    },
   },
 })

@@ -78,6 +78,17 @@ export const ArrowRightIcon = (p: IconProps) => (
   </Svg>
 )
 
+export const GripIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" />
+  </Svg>
+)
+
 export const LinkIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />

@@ -20,6 +20,16 @@ import {
   suggestNeutral,
 } from './audit'
 import { suggestAdditions } from './suggest'
+import {
+  applyRoleAssignments,
+  HIGH_CONFIDENCE_MARGIN_MIN,
+  HIGH_CONFIDENCE_SCORE_MIN,
+  MEDIUM_CONFIDENCE_MARGIN_MIN,
+  MEDIUM_CONFIDENCE_SCORE_MIN,
+  suggestRoles,
+  UNIQUE_ASSISTANT_ROLES,
+  validateRoleAssignments,
+} from './roles'
 import type { Palette } from './types'
 
 const pal = (...hexes: string[]): Palette =>
@@ -117,6 +127,328 @@ describe('rolePairs', () => {
   })
 })
 
+describe('automatic role inference', () => {
+  const roled = (
+    entries: [string, import('./types').Role, boolean?][],
+  ): Palette =>
+    entries.map(([hex, role, locked = false], i) => ({
+      id: `r${i}`,
+      hex,
+      role,
+      locked,
+    }))
+
+  it('evaluates light and dark mappings and uses light for an exact tie', () => {
+    expect(
+      suggestRoles(pal('#ffffff', '#111111', '#3a7bd5', '#e5484d', '#8a8f98'))
+        .interpretation,
+    ).toBe('dark')
+    expect(
+      suggestRoles(pal('#ffffff', '#050505', '#1e3a8a', '#7f1d1d', '#14532d'))
+        .interpretation,
+    ).toBe('light')
+
+    const tied = suggestRoles(pal('not-a-color'))
+    expect(tied.interpretation).toBe('light')
+    expect(tied.rationale).toContain('scored equally')
+  })
+
+  it('uses explicit background median lightness and the light tie boundary', () => {
+    const singleDark = suggestRoles(
+      roled([
+        ['#111111', 'background'],
+        ['#ffffff', 'unset'],
+      ]),
+    )
+    expect(singleDark.interpretation).toBe('dark')
+
+    const medianTie = suggestRoles(
+      roled([
+        ['#000000', 'background'],
+        ['#ffffff', 'background'],
+        ['#777777', 'unset'],
+      ]),
+    )
+    expect(medianTie.interpretation).toBe('light')
+    expect(medianTie.rationale).toContain('least favorable contrast')
+    expect(
+      medianTie.suggestions.some(
+        (suggestion) => suggestion.recommended.role === 'background',
+      ),
+    ).toBe(false)
+  })
+
+  it('scores foregrounds against the least favorable explicit background', () => {
+    const againstWhite = suggestRoles(
+      roled([
+        ['#ffffff', 'background'],
+        ['#555555', 'unset'],
+      ]),
+    ).suggestions[0].recommended.score
+    const againstBoth = suggestRoles(
+      roled([
+        ['#ffffff', 'background'],
+        ['#000000', 'background'],
+        ['#555555', 'unset'],
+      ]),
+    ).suggestions[0].recommended.score
+
+    expect(againstBoth).toBeLessThan(againstWhite)
+  })
+
+  it('preserves duplicate explicit roles and blocks every occupied unique role', () => {
+    const result = suggestRoles(
+      roled([
+        ['#3a7bd5', 'primary'],
+        ['#e5484d', 'primary'],
+        ['#ffffff', 'background'],
+        ['#111111', 'text'],
+        ['#22c55e', 'unset'],
+      ]),
+    )
+    const roles = result.suggestions.flatMap((suggestion) => [
+      suggestion.recommended.role,
+      ...suggestion.alternatives.map((candidate) => candidate.role),
+    ])
+    expect(roles).not.toContain('primary')
+    expect(roles).not.toContain('background')
+    expect(roles).not.toContain('text')
+  })
+
+  it('uses ordered valid brand anchors and stable palette order for ties', () => {
+    const entries: [string, import('./types').Role, boolean?][] = [
+      ['#ffffff', 'background'],
+      ['#111111', 'text'],
+      ['#ef4444', 'primary'],
+      ['#3b82f6', 'accent'],
+      ['#fca5a5', 'unset'],
+      ['#93c5fd', 'unset'],
+    ]
+    const first = suggestRoles(roled(entries))
+    const repeated = suggestRoles(roled(entries))
+    expect(repeated).toEqual(first)
+    expect(first.suggestions.map((suggestion) => suggestion.swatchId)).toEqual([
+      'r4',
+      'r5',
+    ])
+    expect(
+      first.suggestions.some((suggestion) =>
+        suggestion.recommended.reason.includes('hue'),
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps automatic unique roles unique and allows generic role reuse', () => {
+    const uniqueResult = suggestRoles(
+      pal(
+        '#ffffff',
+        '#111111',
+        '#ef4444',
+        '#3b82f6',
+        '#22c55e',
+        '#fca5a5',
+        '#7f1d1d',
+        '#f5f5f4',
+        '#737373',
+        '#292524',
+        '#eab308',
+      ),
+    )
+    const recommendations = uniqueResult.suggestions.map(
+      (suggestion) => suggestion.recommended.role,
+    )
+    const uniqueRecommendations = recommendations
+      .filter((role) => UNIQUE_ASSISTANT_ROLES.includes(role))
+    expect(new Set(uniqueRecommendations).size).toBe(uniqueRecommendations.length)
+    expect(new Set(recommendations)).toEqual(
+      new Set([
+        'background',
+        'text',
+        'primary',
+        'hero',
+        'accent',
+        'light-accent',
+        'dark-accent',
+        'neutral',
+        'light-neutral',
+        'dark-neutral',
+      ]),
+    )
+
+    const protectedUniques = UNIQUE_ASSISTANT_ROLES.map((role, index) => [
+      index % 2 ? '#111111' : '#ffffff',
+      role,
+    ] as [string, import('./types').Role])
+    const reusable = suggestRoles(
+      roled([
+        ...protectedUniques,
+        ['#ef4444', 'unset'],
+        ['#22c55e', 'unset'],
+        ['#3b82f6', 'unset'],
+      ]),
+    )
+    expect(reusable.suggestions.map((suggestion) => suggestion.recommended.role)).toEqual([
+      'accent',
+      'accent',
+      'accent',
+    ])
+
+    const reusableNeutral = suggestRoles(
+      roled([
+        ...protectedUniques,
+        ['#ef4444', 'accent'],
+        ['#777777', 'unset'],
+        ['#888888', 'unset'],
+        ['#999999', 'unset'],
+      ]),
+    )
+    expect(
+      reusableNeutral.suggestions.map(
+        (suggestion) => suggestion.recommended.role,
+      ),
+    ).toEqual(['neutral', 'neutral', 'neutral'])
+  })
+
+  it('prefers an AA-capable text/background mapping when one exists', () => {
+    const accessible = suggestRoles(pal('#ffffff', '#000000'))
+    const impossible = suggestRoles(pal('#777777', '#888888'))
+    expect(accessible.rationale).toContain('WCAG AA')
+    expect(impossible.rationale).not.toContain('WCAG AA')
+    expect(accessible.quality).toBeGreaterThan(impossible.quality)
+  })
+
+  it('pins confidence thresholds, normalized scores, reasons, and alternative order', () => {
+    expect(HIGH_CONFIDENCE_SCORE_MIN).toBe(0.75)
+    expect(HIGH_CONFIDENCE_MARGIN_MIN).toBe(0.2)
+    expect(MEDIUM_CONFIDENCE_SCORE_MIN).toBe(0.55)
+    expect(MEDIUM_CONFIDENCE_MARGIN_MIN).toBe(0.1)
+
+    const suggestion = suggestRoles(
+      roled([
+        ['#ffffff', 'background'],
+        ['#111111', 'unset'],
+        ['#3a7bd5', 'unset'],
+      ]),
+    ).suggestions[0]
+    expect(suggestion.recommended.score).toBeGreaterThanOrEqual(0)
+    expect(suggestion.recommended.score).toBeLessThanOrEqual(1)
+    expect(suggestion.recommended.reason).toMatch(/contrast|chroma|tone|hue|salience/i)
+    expect(suggestion.alternatives).toHaveLength(3)
+    expect(suggestion.alternatives.map((candidate) => candidate.score)).toEqual(
+      [...suggestion.alternatives]
+        .sort((a, b) => b.score - a.score)
+        .map((candidate) => candidate.score),
+    )
+    expect(
+      suggestion.alternatives.some((candidate) => candidate.role === 'accent'),
+    ).toBe(true)
+    expect(
+      suggestion.alternatives.some((candidate) => candidate.role === 'neutral'),
+    ).toBe(true)
+  })
+
+  it('handles empty, invalid, duplicate, and all-protected palettes defensively', () => {
+    expect(suggestRoles([]).suggestions).toEqual([])
+
+    const invalid = suggestRoles(pal('not-a-color')).suggestions[0]
+    expect(invalid.confidence).toBe('low')
+    expect(invalid.recommended.role).toBe('neutral')
+    expect(invalid.alternatives.map((candidate) => candidate.role)).toEqual([
+      'accent',
+    ])
+
+    const duplicates = suggestRoles(pal('#ffffff', '#ffffff', '#111111'))
+    expect(duplicates.suggestions[0].recommended.role).toBe('text')
+    expect(duplicates.suggestions[2].recommended.role).toBe('background')
+    expect(suggestRoles(pal('#ffffff', '#ffffff', '#111111'))).toEqual(duplicates)
+
+    expect(
+      suggestRoles(
+        roled([
+          ['#ffffff', 'background'],
+          ['#111111', 'unset', true],
+          ['#3a7bd5', 'primary'],
+        ]),
+      ).suggestions,
+    ).toEqual([])
+  })
+
+  it('rejects stale, locked, assigned, missing, unset, duplicate, and conflicting targets', () => {
+    const palette = roled([
+      ['#ffffff', 'background'],
+      ['#111111', 'unset'],
+      ['#3a7bd5', 'unset', true],
+      ['#ef4444', 'primary'],
+    ])
+    expect(validateRoleAssignments(palette, [])).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [{ swatchId: 'missing', role: 'accent' }]),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [{ swatchId: 'r2', role: 'accent' }]),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [{ swatchId: 'r0', role: 'neutral' }]),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [{ swatchId: 'r1', role: 'background' }]),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [
+        { swatchId: 'r1', role: 'accent' },
+        { swatchId: 'r1', role: 'neutral' },
+      ]),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(
+        roled([
+          ['#111111', 'unset'],
+          ['#222222', 'unset'],
+        ]),
+        [
+          { swatchId: 'r0', role: 'text' },
+          { swatchId: 'r1', role: 'text' },
+        ],
+      ),
+    ).toBe(false)
+    expect(
+      validateRoleAssignments(palette, [
+        { swatchId: 'r1', role: 'unset' },
+      ] as unknown as import('./roles').RoleAssignment[]),
+    ).toBe(false)
+  })
+
+  it('applies a valid batch atomically without changing color, order, or locks', () => {
+    const palette = roled([
+      ['#ffffff', 'background'],
+      ['#111111', 'unset'],
+      ['#3a7bd5', 'unset'],
+    ])
+    const before = palette.map((swatch) => ({ ...swatch }))
+    const applied = applyRoleAssignments(palette, [
+      { swatchId: 'r1', role: 'text' },
+      { swatchId: 'r2', role: 'accent' },
+    ])
+    expect(applied?.map(({ id, hex, locked }) => ({ id, hex, locked }))).toEqual(
+      before.map(({ id, hex, locked }) => ({ id, hex, locked })),
+    )
+    expect(applied?.map((swatch) => swatch.role)).toEqual([
+      'background',
+      'text',
+      'accent',
+    ])
+    expect(palette).toEqual(before)
+
+    expect(
+      applyRoleAssignments(palette, [
+        { swatchId: 'r1', role: 'text' },
+        { swatchId: 'missing', role: 'accent' },
+      ]),
+    ).toBeNull()
+    expect(palette).toEqual(before)
+  })
+})
+
 describe('health', () => {
   it('scores a clean palette high and a broken one lower', () => {
     const good = [
@@ -186,10 +518,23 @@ describe('palette audit', () => {
     expect(suggestions.map((suggestion) => suggestion.kind)).toEqual([
       'light-neutral',
       'dark-neutral',
+      'harmony-color',
     ])
     expect(suggestions.map((suggestion) => suggestion.role)).toEqual([
       'light-neutral',
       'dark-neutral',
+      'accent',
+    ])
+  })
+
+  it('matches the reference suggestions for the five-color warm brand palette', () => {
+    const fixture = ['#edc9ff', '#fed4e7', '#f2b79f', '#e6b869', '#d8cc34']
+    const suggestions = suggestAdditions(pal(...fixture))
+
+    expect(suggestions.map((suggestion) => [suggestion.kind, suggestion.hex])).toEqual([
+      ['light-neutral', '#fdf9f4'],
+      ['dark-neutral', '#2a1f1a'],
+      ['harmony-color', '#f29fb0'],
     ])
   })
 

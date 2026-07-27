@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  RefObject,
+} from 'react'
+import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
 import type { Palette, Role } from '../../color/types'
 import { ROLE_LABELS } from '../../color/types'
 import { normalizeHex, toOklch } from '../../color/convert'
 import { Button, IconButton } from '../ui/Button'
+import type { RoleAssignment } from '../../color/roles'
+import { RoleSuggestReview } from './RoleSuggestReview'
 import {
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
   DropperIcon,
+  GripIcon,
   LockIcon,
   PlusIcon,
   TrashIcon,
@@ -27,8 +36,10 @@ interface Props {
   onUpdate: (id: string, hex: string) => void
   onRole: (id: string, role: Role) => void
   onToggleLock: (id: string) => void
+  onReorder: (ids: readonly string[]) => boolean
   onRemove: (id: string) => void
   onAdd: () => void
+  onSetRoles: (assignments: readonly RoleAssignment[]) => boolean
 }
 
 const ROLE_GROUPS: { label: string; roles: Role[] }[] = [
@@ -41,14 +52,68 @@ const ROLE_GROUPS: { label: string; roles: Role[] }[] = [
   },
 ]
 
+const DRAG_EDGE_ELASTICITY = {
+  top: 0.08,
+  right: 0,
+  bottom: 0.08,
+  left: 0,
+} as const
+
 export function SwatchGrid({
   palette,
   onUpdate,
   onRole,
   onToggleLock,
+  onReorder,
   onRemove,
   onAdd,
+  onSetRoles,
 }: Props) {
+  const reduceMotion = useReducedMotion()
+  const reorderBoundsRef = useRef<HTMLDivElement>(null)
+  const [orderedPalette, setOrderedPalette] = useState(palette)
+  const orderedPaletteRef = useRef(palette)
+  const [moveAnnouncement, setMoveAnnouncement] = useState('')
+
+  useEffect(() => {
+    orderedPaletteRef.current = palette
+    setOrderedPalette(palette)
+  }, [palette])
+
+  const updateOrder = (next: Palette) => {
+    orderedPaletteRef.current = next
+    setOrderedPalette(next)
+  }
+
+  const commitOrder = (id: string, hex: string) => {
+    const ids = orderedPaletteRef.current.map((swatch) => swatch.id)
+    if (!onReorder(ids)) return
+    const position = ids.indexOf(id) + 1
+    setMoveAnnouncement(
+      `${hex.toUpperCase()} moved to position ${position} of ${ids.length}.`,
+    )
+  }
+
+  const moveWithKeyboard = (
+    id: string,
+    hex: string,
+    direction: 'up' | 'down',
+  ) => {
+    const from = orderedPaletteRef.current.findIndex(
+      (swatch) => swatch.id === id,
+    )
+    const to = from + (direction === 'up' ? -1 : 1)
+    if (from === -1 || to < 0 || to >= orderedPaletteRef.current.length) {
+      return
+    }
+    const next = [...orderedPaletteRef.current]
+    const displaced = next[to]
+    next[to] = next[from]
+    next[from] = displaced
+    updateOrder(next)
+    commitOrder(id, hex)
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -60,24 +125,130 @@ export function SwatchGrid({
         </Button>
       </div>
 
-      <div className="space-y-2">
-        {palette.map((s) => (
-          <Card
-            key={s.id}
-            hex={s.hex}
-            role={s.role}
-            locked={s.locked}
-            onChange={(hex) => onUpdate(s.id, hex)}
-            onRole={(role) => onRole(s.id, role)}
-            onToggleLock={() => onToggleLock(s.id)}
-            onRemove={() => onRemove(s.id)}
-          />
-        ))}
+      <RoleSuggestReview palette={palette} onApply={onSetRoles} />
+
+      <div ref={reorderBoundsRef} className="relative">
+        <Reorder.Group
+          axis="y"
+          values={orderedPalette}
+          onReorder={updateOrder}
+          as="div"
+          role="list"
+          aria-label="Palette colors"
+          className="space-y-2"
+        >
+          {orderedPalette.map((swatch) => (
+            <DraggableSwatch
+              key={swatch.id}
+              swatch={swatch}
+              constraintsRef={reorderBoundsRef}
+              reduceMotion={reduceMotion ?? false}
+              onChange={(hex) => onUpdate(swatch.id, hex)}
+              onRole={(role) => onRole(swatch.id, role)}
+              onKeyboardMove={(direction) =>
+                moveWithKeyboard(swatch.id, swatch.hex, direction)
+              }
+              onDragStart={() =>
+                setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
+              }
+              onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
+              onToggleLock={() => onToggleLock(swatch.id)}
+              onRemove={() => onRemove(swatch.id)}
+            />
+          ))}
+        </Reorder.Group>
       </div>
+      <p role="status" aria-live="polite" className="sr-only">
+        {moveAnnouncement}
+      </p>
       {palette.length === 0 && (
         <p className="text-sm text-muted">No colors yet — add one to start.</p>
       )}
     </div>
+  )
+}
+
+function DraggableSwatch({
+  swatch,
+  constraintsRef,
+  reduceMotion,
+  onChange,
+  onRole,
+  onKeyboardMove,
+  onDragStart,
+  onDragEnd,
+  onToggleLock,
+  onRemove,
+}: {
+  swatch: Palette[number]
+  constraintsRef: RefObject<HTMLDivElement | null>
+  reduceMotion: boolean
+  onChange: (hex: string) => void
+  onRole: (role: Role) => void
+  onKeyboardMove: (direction: 'up' | 'down') => void
+  onDragStart: () => void
+  onDragEnd: () => void
+  onToggleLock: () => void
+  onRemove: () => void
+}) {
+  const dragControls = useDragControls()
+
+  const startDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    dragControls.start(event)
+  }
+
+  const handleReorderKey = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+    event.preventDefault()
+    onKeyboardMove(event.key === 'ArrowUp' ? 'up' : 'down')
+  }
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={swatch}
+      role="listitem"
+      dragListener={false}
+      dragControls={dragControls}
+      dragConstraints={constraintsRef}
+      dragElastic={DRAG_EDGE_ELASTICITY}
+      dragMomentum={false}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      whileDrag={
+        reduceMotion
+          ? { zIndex: 20 }
+          : {
+              zIndex: 20,
+              boxShadow: '0 18px 34px rgba(35, 24, 16, 0.28)',
+            }
+      }
+      transition={
+        reduceMotion
+          ? { layout: { duration: 0 } }
+          : {
+              layout: {
+                type: 'spring',
+                stiffness: 500,
+                damping: 38,
+                mass: 0.7,
+              },
+            }
+      }
+      className="group relative rounded-xl will-change-transform"
+    >
+      <Card
+        hex={swatch.hex}
+        role={swatch.role}
+        locked={swatch.locked}
+        onChange={onChange}
+        onRole={onRole}
+        onGripPointerDown={startDrag}
+        onGripKeyDown={handleReorderKey}
+        onToggleLock={onToggleLock}
+        onRemove={onRemove}
+      />
+    </Reorder.Item>
   )
 }
 
@@ -87,6 +258,8 @@ function Card({
   locked,
   onChange,
   onRole,
+  onGripPointerDown,
+  onGripKeyDown,
   onToggleLock,
   onRemove,
 }: {
@@ -95,6 +268,8 @@ function Card({
   locked: boolean
   onChange: (hex: string) => void
   onRole: (role: Role) => void
+  onGripPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  onGripKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void
   onToggleLock: () => void
   onRemove: () => void
 }) {
@@ -140,7 +315,7 @@ function Card({
   const light = (toOklch(hex)?.l ?? 0.5) > 0.6
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-line/50 bg-surface p-2 shadow-lg shadow-[#7d684f]/15">
+    <div className="flex items-center gap-2 rounded-xl border border-line/50 bg-surface p-2 shadow-lg shadow-[#7d684f]/15 transition-[background-color,border-color,box-shadow] duration-150 group-hover:border-accent/60 group-hover:bg-surface-2/60 group-hover:shadow-xl group-hover:shadow-[#7d684f]/25">
       <div className="relative h-11 w-11 shrink-0">
         <Button
           variant="paint"
@@ -213,6 +388,16 @@ function Card({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onPointerDown={onGripPointerDown}
+          onKeyDown={onGripKeyDown}
+          className="flex h-8 w-5 touch-none cursor-grab items-center justify-center rounded text-muted transition-colors group-hover:text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
+          aria-label={`Drag ${hex} to reorder. Use arrow keys to move it.`}
+          title="Drag to reorder"
+        >
+          <GripIcon width={16} height={20} />
+        </button>
         {hasEyeDropper() && (
           <IconButton onClick={pick} title="Pick color from screen" className="h-7 w-7">
             <DropperIcon width={14} height={14} />

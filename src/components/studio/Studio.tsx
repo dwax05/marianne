@@ -41,8 +41,8 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
   }
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-hidden text-fg">
-      <header className="relative z-10 flex flex-wrap items-center gap-3 border-b border-line/40 bg-surface/70 px-5 py-3 backdrop-blur">
+    <div className="relative isolate min-h-screen overflow-x-clip text-fg">
+      <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-line/40 bg-surface/70 px-5 py-3 backdrop-blur">
         <a href="#/" className="text-lg font-semibold tracking-tight">
           marianne
         </a>
@@ -77,8 +77,10 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
             onUpdate={pal.updateSwatch}
             onRole={pal.setRole}
             onToggleLock={pal.toggleLock}
+            onReorder={pal.reorderSwatches}
             onRemove={pal.removeSwatch}
             onAdd={() => pal.addSwatch()}
+            onSetRoles={pal.setRoles}
           />
         </aside>
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Palette, Role, Swatch } from '../color/types'
+import type { RoleAssignment } from '../color/roles'
+import { applyRoleAssignments } from '../color/roles'
 import {
   decodePalette,
   encodePalette,
@@ -45,7 +47,11 @@ export interface UsePalette {
   addSwatches: (items: { hex: string; role?: Role }[]) => void
   updateSwatch: (id: string, hex: string) => void
   setRole: (id: string, role: Role) => void
+  /** Assign several eligible semantic roles in one undoable commit. */
+  setRoles: (assignments: readonly RoleAssignment[]) => boolean
   toggleLock: (id: string) => void
+  /** Commit a complete swatch order in one undoable operation. */
+  reorderSwatches: (ids: readonly string[]) => boolean
   removeSwatch: (id: string) => void
   reset: () => void
   undo: () => void
@@ -110,9 +116,38 @@ export function usePalette(): UsePalette {
     [palette, commit],
   )
 
+  const setRoles = useCallback(
+    (assignments: readonly RoleAssignment[]) => {
+      const next = applyRoleAssignments(palette, assignments)
+      if (!next) return false
+      commit(next)
+      return true
+    },
+    [palette, commit],
+  )
+
   const toggleLock = useCallback(
     (id: string) => {
       commit(palette.map((s) => (s.id === id ? { ...s, locked: !s.locked } : s)))
+    },
+    [palette, commit],
+  )
+
+  const reorderSwatches = useCallback(
+    (ids: readonly string[]) => {
+      if (ids.length !== palette.length) return false
+      const byId = new Map(palette.map((swatch) => [swatch.id, swatch]))
+      const seen = new Set<string>()
+      const next: Palette = []
+      for (const id of ids) {
+        const swatch = byId.get(id)
+        if (!swatch || seen.has(id)) return false
+        seen.add(id)
+        next.push(swatch)
+      }
+      if (next.every((swatch, index) => swatch === palette[index])) return false
+      commit(next)
+      return true
     },
     [palette, commit],
   )
@@ -149,7 +184,9 @@ export function usePalette(): UsePalette {
     addSwatches,
     updateSwatch,
     setRole,
+    setRoles,
     toggleLock,
+    reorderSwatches,
     removeSwatch,
     reset,
     undo,

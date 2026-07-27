@@ -18,6 +18,7 @@
   --good: #347759; /* pass / healthy */
   --warn: #ad721b; /* caution */
   --bad: #bb4545; /* fail */
+  --canvas-bg: #e6dfd2; /* quiet, unprimed linen */
 }
 
 :root[data-theme='dark'] {
@@ -34,6 +35,7 @@
   --good: #72bd92; /* pass / healthy */
   --warn: #d7a44e; /* caution */
   --bad: #e27575; /* fail */
+  --canvas-bg: #171817; /* charcoal-primed linen */
 }
 
 @theme inline {
@@ -96,6 +98,7 @@ html.theme-transition::view-transition-new(root) {
 
 @media (forced-colors: active) {
   .artist-palette-board,
+  .canvas-backdrop,
   .paint-page-canvas,
   .paint-cursor {
     display: none;

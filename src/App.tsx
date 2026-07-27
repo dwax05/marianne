@@ -3,7 +3,10 @@ import { flushSync } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Landing } from './components/landing/Landing'
 import { Studio } from './components/studio/Studio'
-import { PaintCanvasSessionProvider } from './components/ui/PaintCanvas'
+import {
+  CanvasBackdrop,
+  PaintCanvasSessionProvider,
+} from './components/ui/PaintCanvas'
 import { applyTheme, themeTransitionRadius } from './theme'
 import type { Theme, ThemeTransitionOrigin } from './theme'
 
@@ -78,6 +81,7 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
 
   return (
     <PaintCanvasSessionProvider>
+      <CanvasBackdrop theme={theme} />
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -85,6 +89,7 @@ function App({ initialTheme = 'light' }: { initialTheme?: Theme }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
+          className="relative z-10"
         >
           {view === 'app' ? (
             <Studio theme={theme} onThemeToggle={toggleTheme} />

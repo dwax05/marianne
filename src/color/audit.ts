@@ -28,6 +28,17 @@ interface MeasuredSwatch {
   color: Oklch
 }
 
+export interface RepresentativeColor {
+  swatch: Palette[number]
+  color: Oklch
+}
+
+const LIGHT_NEUTRAL_LIGHTNESS = 0.984
+const DARK_NEUTRAL_LIGHTNESS = 0.25
+const LIGHT_NEUTRAL_CHROMA_SCALE = 0.08
+const DARK_NEUTRAL_CHROMA_SCALE = 0.2
+const LIGHT_NEUTRAL_HUE_SHIFT = 30
+
 /** Check whether the palette has quiet colors at both ends of its tonal range. */
 export function analyzeCoverage(palette: Palette): PaletteCoverage {
   const colors = palette
@@ -56,16 +67,53 @@ export function suggestNeutral(palette: Palette, tone: NeutralTone): Hex {
   const measured = measure(palette).filter(
     ({ color }) => color.c > NEUTRAL_CHROMA_MAX,
   )
-  const h = averageHue(measured)
+  const representative = representativeChromaticColor(palette)
+  const anchorHue = representative?.color.h ?? 45
   const averageChroma = measured.length
     ? measured.reduce((sum, { color }) => sum + color.c, 0) / measured.length
     : 0.08
-  const c = clamp(averageChroma * 0.14, 0.008, tone === 'light' ? 0.018 : 0.024)
+  const light = tone === 'light'
+  const c = clamp(
+    averageChroma *
+      (light ? LIGHT_NEUTRAL_CHROMA_SCALE : DARK_NEUTRAL_CHROMA_SCALE),
+    light ? 0.006 : 0.012,
+    light ? 0.012 : 0.024,
+  )
   return toHex({
-    l: tone === 'light' ? 0.965 : 0.235,
+    l: light ? LIGHT_NEUTRAL_LIGHTNESS : DARK_NEUTRAL_LIGHTNESS,
     c,
-    h,
+    h: (anchorHue + (light ? LIGHT_NEUTRAL_HUE_SHIFT : 0)) % 360,
   })
+}
+
+/**
+ * Pick the palette color with the smallest total circular hue distance to the
+ * rest of the chromatic colors. Unlike an average, this medoid cannot drift
+ * toward one unusually saturated swatch and always resolves ties by palette
+ * order.
+ */
+export function representativeChromaticColor(
+  palette: Palette,
+): RepresentativeColor | null {
+  const chromatic = measure(palette).filter(
+    ({ color }) => color.c > NEUTRAL_CHROMA_MAX,
+  )
+  let best: MeasuredSwatch | null = null
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  for (const candidate of chromatic) {
+    const distance = chromatic.reduce(
+      (sum, other) =>
+        sum + circularHueDistance(candidate.color.h, other.color.h),
+      0,
+    )
+    if (distance < bestDistance - 1e-9) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+
+  return best
 }
 
 /**
@@ -166,17 +214,9 @@ function measure(palette: Palette): MeasuredSwatch[] {
     )
 }
 
-function averageHue(colors: MeasuredSwatch[]): number {
-  if (colors.length === 0) return 75
-  let x = 0
-  let y = 0
-  for (const { color } of colors) {
-    const radians = (color.h * Math.PI) / 180
-    x += Math.cos(radians) * color.c
-    y += Math.sin(radians) * color.c
-  }
-  const degrees = (Math.atan2(y, x) * 180) / Math.PI
-  return (degrees + 360) % 360
+function circularHueDistance(a: number, b: number): number {
+  const delta = Math.abs(a - b) % 360
+  return Math.min(delta, 360 - delta)
 }
 
 function median(values: number[]): number {

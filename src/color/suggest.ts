@@ -1,16 +1,23 @@
+import { converter } from 'culori'
 import type { Hex, Palette, Role } from './types'
 import { analyzeBalance } from './balance'
 import {
   analyzeCoverage,
   analyzeHarmony,
   NEUTRAL_CHROMA_MAX,
+  representativeChromaticColor,
   suggestNeutral,
 } from './audit'
 import { toHex, toOklch } from './convert'
 import { AA_NORMAL, contrast, suggestContrastFix } from './contrast'
 
 export interface Suggestion {
-  kind: 'light-neutral' | 'dark-neutral' | 'lightness-gap' | 'contrast'
+  kind:
+    | 'light-neutral'
+    | 'dark-neutral'
+    | 'lightness-gap'
+    | 'harmony-color'
+    | 'contrast'
   label: string
   hex: Hex
   reason: string
@@ -21,6 +28,7 @@ export interface Suggestion {
  * Propose useful additions:
  *  - supply missing light and dark neutrals,
  *  - fill a genuinely large lightness gap, and
+ *  - add an analogous accent on the palette's less crowded hue side, and
  *  - if a background is given, guarantee at least one AA-passing color
  *    against it (fixing the closest existing color if none passes).
  */
@@ -93,7 +101,13 @@ export function suggestAdditions(
     }
   }
 
-  // 3. Ensure the current or proposed palette passes AA against the background.
+  // 3. Add a harmonious accent from the palette's representative color. HSL
+  //    preserves the anchor's visual weight while a ±30° hue step creates the
+  //    familiar analogous relationship. Prefer the less crowded side.
+  const harmony = suggestHarmonyColor(palette)
+  if (harmony) suggestions.push(harmony)
+
+  // 4. Ensure the current or proposed palette passes AA against the background.
   if (targetContrastBg) {
     const passes = [...palette.map((s) => s.hex), ...suggestions.map((s) => s.hex)]
       .some((hex) => contrast(hex, targetContrastBg) >= target)
@@ -118,6 +132,75 @@ export function suggestAdditions(
   }
 
   return suggestions
+}
+
+const toHslColor = converter('hsl')
+const toRgbColor = converter('rgb')
+const ANALOGOUS_HUE_STEP = 30
+
+function suggestHarmonyColor(palette: Palette): Suggestion | null {
+  const anchor = representativeChromaticColor(palette)
+  if (!anchor) return null
+  const anchorHsl = toHslColor(anchor.swatch.hex)
+  if (!anchorHsl || anchorHsl.h === undefined) return null
+
+  const paletteHues = palette
+    .map((swatch) => toHslColor(swatch.hex))
+    .filter(
+      (color): color is NonNullable<typeof color> =>
+        color !== undefined &&
+        color.h !== undefined &&
+        (color.s ?? 0) > 0.08,
+    )
+    .map((color) => color.h!)
+
+  const offsets = [-ANALOGOUS_HUE_STEP, ANALOGOUS_HUE_STEP] as const
+  let selectedOffset = offsets[0]
+  let bestSeparation = -1
+  for (const offset of offsets) {
+    const hue = (anchorHsl.h + offset + 360) % 360
+    const separation = Math.min(
+      ...paletteHues.map((existingHue) =>
+        circularHueDistance(hue, existingHue),
+      ),
+    )
+    if (separation > bestSeparation + 1e-9) {
+      selectedOffset = offset
+      bestSeparation = separation
+    }
+  }
+
+  const hex = formatHslWithFloor({
+    ...anchorHsl,
+    h: (anchorHsl.h + selectedOffset + 360) % 360,
+  })
+  if (!hex || palette.some((swatch) => swatch.hex.toLowerCase() === hex)) {
+    return null
+  }
+
+  return {
+    kind: 'harmony-color',
+    label: 'Harmony color',
+    hex,
+    reason: `Analogous accent to ${anchor.swatch.hex.toLowerCase()} — harmonious and cohesive.`,
+    role: 'accent',
+  }
+}
+
+function formatHslWithFloor(color: ReturnType<typeof toHslColor>): Hex | null {
+  if (!color) return null
+  const rgb = toRgbColor(color)
+  if (!rgb) return null
+  const channel = (value = 0) =>
+    Math.floor(Math.min(1, Math.max(0, value)) * 255 + 1e-9)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${channel(rgb.r)}${channel(rgb.g)}${channel(rgb.b)}`
+}
+
+function circularHueDistance(a: number, b: number): number {
+  const delta = Math.abs(a - b) % 360
+  return Math.min(delta, 360 - delta)
 }
 
 /**

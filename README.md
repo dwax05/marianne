@@ -17,10 +17,19 @@ palette is shareable by link.
 - **Harmony** — flags saturation/lightness outliers and generates harmonious
   palettes by hue rotation.
 - **Smart suggestions** — fills structural gaps (light/dark neutral anchors, tonal
-  bridges) and guarantees an AA-passing color against a target background.
+  bridges), adds a palette-aware analogous harmony color, and guarantees an
+  AA-passing color against a target background.
+- **Auto-suggested roles** — infers a light or dark palette interpretation, then
+  proposes confidence-ranked semantic roles and alternatives for unassigned
+  colors in one reviewable, undoable batch.
+- **Manual ordering** — drag swatches by a compact grip with leaderboard-style
+  feedback, or use arrow keys from the focused grip; order persists in share
+  links and each completed reorder is undoable.
 - **Health score** — rolls every check into a single 0–100 verdict.
 
-Locked swatches are protected from any automatic change.
+Automatic role suggestions preserve every explicit role and locked swatch. They
+only include unlocked colors set to **No role**, and never change colors, order,
+or persistence formats.
 
 ## Stack
 

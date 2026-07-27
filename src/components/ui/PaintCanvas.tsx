@@ -40,12 +40,50 @@ export function PaintCanvasSessionProvider({ children }: { children: ReactNode }
   )
 }
 
+export function CanvasBackdrop({ theme }: { theme: Theme }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const ctx: CanvasRenderingContext2D = context
+
+    const draw = () => {
+      const rect = canvas.getBoundingClientRect()
+      const width = Math.max(1, rect.width)
+      const height = Math.max(1, rect.height)
+      const dpr = Math.min(window.devicePixelRatio || 1, width < 480 ? 1.5 : 2)
+      canvas.width = Math.round(width * dpr)
+      canvas.height = Math.round(height * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+      const canvasColor = getComputedStyle(document.documentElement)
+        .getPropertyValue('--canvas-bg')
+        .trim()
+      drawCanvasTexture(ctx, width, height, canvasColor, theme)
+    }
+
+    const observer = new ResizeObserver(draw)
+    observer.observe(canvas)
+    draw()
+    return () => observer.disconnect()
+  }, [theme])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      className="canvas-backdrop pointer-events-none fixed inset-0 z-0 h-full w-full"
+    />
+  )
+}
+
 export function PaintCanvas({
   color,
-  theme,
 }: {
   color: string | null
-  theme: Theme
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
@@ -176,10 +214,7 @@ export function PaintCanvas({
     }
 
     const redraw = () => {
-      const canvasColor = getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg')
-        .trim()
-      drawCanvasTexture(ctx, width, height, canvasColor)
+      ctx.clearRect(0, 0, width, height)
       paintContext.clearRect(0, 0, width, height)
       owners.fill(0)
       for (const segment of session.segments) {
@@ -306,7 +341,7 @@ export function PaintCanvas({
       redrawRef.current = null
       updateCursorRef.current = null
     }
-  }, [session, theme])
+  }, [session])
 
   const clear = () => {
     session.segments.length = 0
@@ -359,29 +394,93 @@ function drawCanvasTexture(
   width: number,
   height: number,
   canvasColor: string,
+  theme: Theme,
 ) {
   ctx.clearRect(0, 0, width, height)
   ctx.fillStyle = canvasColor
   ctx.fillRect(0, 0, width, height)
-  ctx.lineWidth = 0.65
-  for (let x = 0.5; x < width; x += 5) {
-    ctx.beginPath()
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x + Math.sin(x * 0.11) * 1.4, height)
-    ctx.strokeStyle = x % 10 < 5
-      ? 'rgba(255, 248, 226, 0.17)'
-      : 'rgba(80, 57, 34, 0.09)'
-    ctx.stroke()
+
+  const dark = theme === 'dark'
+  const threadLight = dark
+    ? 'rgba(242, 231, 211, 0.035)'
+    : 'rgba(255, 252, 243, 0.16)'
+  const threadShadow = dark
+    ? 'rgba(0, 0, 0, 0.14)'
+    : 'rgba(87, 70, 49, 0.075)'
+
+  // A paired highlight and shadow gives each strand a little relief without
+  // turning the weave into a visible grid. Small deterministic bends keep it
+  // feeling like cloth when the canvas is redrawn or resized.
+  ctx.save()
+  ctx.lineWidth = 0.45
+  for (let x = -2; x < width + 2; x += 4.8) {
+    drawCanvasThread(ctx, x, height, false, x * 0.73, threadShadow)
+    drawCanvasThread(ctx, x + 0.7, height, false, x * 0.73, threadLight)
   }
-  for (let y = 0.5; y < height; y += 5) {
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(width, y + Math.sin(y * 0.09) * 1.2)
-    ctx.strokeStyle = y % 10 < 5
-      ? 'rgba(255, 248, 226, 0.15)'
-      : 'rgba(80, 57, 34, 0.075)'
-    ctx.stroke()
+  for (let y = -2; y < height + 2; y += 4.35) {
+    drawCanvasThread(ctx, y, width, true, y * 0.81, threadShadow)
+    drawCanvasThread(ctx, y + 0.65, width, true, y * 0.81, threadLight)
   }
+
+  // Occasional short fibres break up the uniform weave. They are deliberately
+  // sparse and low-contrast so they disappear behind content and paint.
+  ctx.lineCap = 'round'
+  ctx.lineWidth = 0.55
+  ctx.strokeStyle = dark
+    ? 'rgba(236, 220, 193, 0.045)'
+    : 'rgba(104, 82, 56, 0.055)'
+  for (let y = 37; y < height; y += 83) {
+    for (let x = 29 + (y % 4) * 13; x < width; x += 137) {
+      const drift = Math.sin(x * 0.21 + y * 0.17)
+      ctx.beginPath()
+      ctx.moveTo(x, y + drift * 2)
+      ctx.quadraticCurveTo(
+        x + 7,
+        y - drift * 2.5,
+        x + 14 + drift * 3,
+        y + drift,
+      )
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
+
+  // Subtle edge depth suggests stretched canvas while keeping the center calm.
+  const vignette = ctx.createRadialGradient(
+    width * 0.48,
+    height * 0.35,
+    Math.min(width, height) * 0.12,
+    width * 0.5,
+    height * 0.45,
+    Math.max(width, height) * 0.78,
+  )
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  vignette.addColorStop(0.72, 'rgba(0, 0, 0, 0)')
+  vignette.addColorStop(1, dark ? 'rgba(0, 0, 0, 0.16)' : 'rgba(68, 52, 36, 0.075)')
+  ctx.fillStyle = vignette
+  ctx.fillRect(0, 0, width, height)
+}
+
+function drawCanvasThread(
+  ctx: CanvasRenderingContext2D,
+  position: number,
+  length: number,
+  horizontal: boolean,
+  seed: number,
+  color: string,
+) {
+  ctx.beginPath()
+  for (let distance = 0; distance <= length + 28; distance += 28) {
+    const offset =
+      Math.sin(distance * 0.037 + seed) * 0.38
+      + Math.sin(distance * 0.011 + seed * 1.7) * 0.22
+    const x = horizontal ? distance : position + offset
+    const y = horizontal ? position + offset : distance
+    if (distance === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.strokeStyle = color
+  ctx.stroke()
 }
 
 function drawBrushSegment(
