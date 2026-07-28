@@ -4,12 +4,12 @@ import { mixPaintPixel, toPaintRgb } from '../../color/paint'
 import { clamp } from '../../lib/num'
 import { Button } from './Button'
 import { UndoIcon } from './icons'
-import {
-  pointFromViewport,
-  pointToViewport,
-  type PaintPoint,
-} from './paintCanvasGeometry'
 import type { Theme } from '../../theme'
+
+interface PaintPoint {
+  x: number
+  y: number
+}
 
 interface BrushSegment {
   from: PaintPoint
@@ -130,6 +130,10 @@ export function PaintCanvas({
     let width = 1
     let height = 1
     let dpr = 1
+    // Segments are stored in page coordinates so paint scrolls with the page.
+    // These offsets map page space back into the fixed viewport canvas.
+    let scrollX = window.scrollX
+    let scrollY = window.scrollY
     let active: {
       pointerId: number
       point: PaintPoint
@@ -137,24 +141,20 @@ export function PaintCanvas({
       width: number
     } | null = null
     let segmentSeed = session.segments.length
-    let scrollFrame: number | null = null
 
-    const applyPaint = (stored: BrushSegment, present: boolean) => {
-      const scroll = { x: window.scrollX, y: window.scrollY }
-      const segment = {
-        ...stored,
-        from: pointToViewport(stored.from, scroll),
-        to: pointToViewport(stored.to, scroll),
-      }
+    const applyPaint = (segment: BrushSegment, present: boolean) => {
+      // Convert page-space endpoints into viewport space for this scroll offset.
+      const from = { x: segment.from.x - scrollX, y: segment.from.y - scrollY }
+      const to = { x: segment.to.x - scrollX, y: segment.to.y - scrollY }
       const pad = segment.width / 2 + 3
-      const left = clamp(Math.floor(Math.min(segment.from.x, segment.to.x) - pad), 0, width)
-      const top = clamp(Math.floor(Math.min(segment.from.y, segment.to.y) - pad), 0, height)
-      const right = clamp(Math.ceil(Math.max(segment.from.x, segment.to.x) + pad), 0, width)
-      const bottom = clamp(Math.ceil(Math.max(segment.from.y, segment.to.y) + pad), 0, height)
+      const left = clamp(Math.floor(Math.min(from.x, to.x) - pad), 0, width)
+      const top = clamp(Math.floor(Math.min(from.y, to.y) - pad), 0, height)
+      const right = clamp(Math.ceil(Math.max(from.x, to.x) + pad), 0, width)
+      const bottom = clamp(Math.ceil(Math.max(from.y, to.y) + pad), 0, height)
       if (right <= left || bottom <= top) return
 
       maskContext.clearRect(left, top, right - left, bottom - top)
-      drawBrushSegment(maskContext, { ...segment, color: '#ffffff' })
+      drawBrushSegment(maskContext, { ...segment, from, to, color: '#ffffff' })
 
       const sx = Math.floor(left * dpr)
       const sy = Math.floor(top * dpr)
@@ -231,6 +231,8 @@ export function PaintCanvas({
     }
 
     const build = () => {
+      scrollX = window.scrollX
+      scrollY = window.scrollY
       const rect = canvas.getBoundingClientRect()
       width = Math.max(1, rect.width)
       height = Math.max(1, rect.height)
@@ -249,10 +251,7 @@ export function PaintCanvas({
     }
 
     const pointFromEvent = (event: PointerEvent): PaintPoint => {
-      return pointFromViewport(
-        { x: event.clientX, y: event.clientY },
-        { x: window.scrollX, y: window.scrollY },
-      )
+      return { x: event.clientX + window.scrollX, y: event.clientY + window.scrollY }
     }
 
     const blocked = (event: PointerEvent) => {
@@ -326,21 +325,25 @@ export function PaintCanvas({
     }
     updateCursorRef.current = updateCursorMode
 
+    // Repaint in page space as the user scrolls so strokes travel with content.
+    let scrollFrame = 0
     const onScroll = () => {
-      if (scrollFrame !== null) return
-      scrollFrame = window.requestAnimationFrame(() => {
-        scrollFrame = null
+      if (scrollFrame) return
+      scrollFrame = requestAnimationFrame(() => {
+        scrollFrame = 0
+        scrollX = window.scrollX
+        scrollY = window.scrollY
         redraw()
       })
     }
 
     const observer = new ResizeObserver(build)
     observer.observe(canvas)
+    window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('pointerdown', onPointerDown, { passive: false })
     window.addEventListener('pointermove', onPointerMove, { passive: false })
     window.addEventListener('pointerup', finish)
     window.addEventListener('pointercancel', finish)
-    window.addEventListener('scroll', onScroll, { passive: true })
     document.documentElement.addEventListener('pointerleave', hideCursor)
     forcedColors.addEventListener('change', updateCursorMode)
     updateCursorMode()
@@ -349,12 +352,12 @@ export function PaintCanvas({
 
     return () => {
       observer.disconnect()
+      if (scrollFrame) cancelAnimationFrame(scrollFrame)
+      window.removeEventListener('scroll', onScroll)
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', finish)
       window.removeEventListener('pointercancel', finish)
-      window.removeEventListener('scroll', onScroll)
-      if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame)
       document.documentElement.removeEventListener('pointerleave', hideCursor)
       forcedColors.removeEventListener('change', updateCursorMode)
       document.body.classList.remove('paint-cursor-active')
