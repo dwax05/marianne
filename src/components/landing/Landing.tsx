@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import { Button } from '../ui/Button'
 import { BalanceIcon, ContrastIcon, EyeIcon, SwatchesIcon } from '../ui/icons'
 import { SAMPLES } from '../../color/samples'
-import { ArtistPaletteBoard } from '../ui/ArtistPaletteBoard'
+import { ImagePaletteBoard } from '../ui/ImagePaletteBoard'
 import { PaintCanvas } from '../ui/PaintCanvas'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import type { ThemeToggleProps } from '../ui/ThemeToggle'
@@ -90,7 +90,7 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
       </header>
 
       <main className="relative z-10 mx-auto max-w-5xl px-6">
-        <section className="grid items-center gap-5 py-10 sm:gap-8 sm:py-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(480px,1.1fr)] lg:gap-4 lg:py-20">
+        <section className="grid items-center gap-4 py-6 sm:gap-6 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(340px,0.8fr)] lg:gap-4 lg:py-12">
           <div className="order-2 text-center lg:order-1 lg:text-left">
             <motion.p
               initial={{ opacity: 0 }}
@@ -140,13 +140,13 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
             initial={{ opacity: 0, scale: 0.92, rotate: 2 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 250, damping: 24 }}
-            className="order-1 -mx-4 lg:order-2 lg:-mr-16 lg:ml-0"
+            className="order-1 -mx-4 lg:order-2 lg:-mr-4 lg:ml-0"
           >
-            <ArtistPaletteBoard
+            <ImagePaletteBoard
               paints={paints}
               selectedPaintId={selectedPaint?.id}
               onPaintSelect={(paint) => setSelectedPaintId(paint.id)}
-              className="h-[270px] w-full sm:h-[350px] lg:h-[430px]"
+              className="mx-auto aspect-[621/534] w-full max-w-sm"
             />
           </motion.div>
         </section>
