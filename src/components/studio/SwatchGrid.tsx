@@ -36,7 +36,7 @@ interface EyeDropperResult {
   sRGBHex: string
 }
 interface EyeDropperCtor {
-  new (): { open: () => Promise<EyeDropperResult> }
+  new(): { open: () => Promise<EyeDropperResult> }
 }
 const hasEyeDropper = () => typeof (window as unknown as { EyeDropper?: unknown }).EyeDropper === 'function'
 
@@ -365,23 +365,23 @@ function DraggableSwatch({
         reduceMotion
           ? { zIndex: 20 }
           : {
-              zIndex: 20,
-              boxShadow: '0 18px 34px rgba(35, 24, 16, 0.28)',
-            }
+            zIndex: 20,
+            boxShadow: '0 18px 34px rgba(35, 24, 16, 0.28)',
+          }
       }
       transition={
         reduceMotion
           ? { layout: { duration: 0 }, duration: 0 }
           : {
-              layout: {
-                type: 'spring',
-                stiffness: 500,
-                damping: 38,
-                mass: 0.7,
-              },
-              duration: 0.24,
-              ease: [0.22, 1, 0.36, 1],
-            }
+            layout: {
+              type: 'spring',
+              stiffness: 500,
+              damping: 38,
+              mass: 0.7,
+            },
+            duration: 0.24,
+            ease: [0.22, 1, 0.36, 1],
+          }
       }
       className="group relative rounded-xl will-change-transform"
     >
@@ -507,7 +507,7 @@ function Card({
           spellCheck={false}
           autoCapitalize="off"
           autoComplete="off"
-          title="Enter a hex color with or without #"
+          title="Enter a hex color"
           aria-label="Hex value"
         />
         <div className="relative mt-1 w-fit max-w-full">
