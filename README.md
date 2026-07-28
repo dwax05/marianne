@@ -16,6 +16,10 @@ palette is shareable by link.
 - **Balance** — OKLCH lightness spacing analysis and an even-ramp respacer.
 - **Harmony** — flags saturation/lightness outliers and generates harmonious
   palettes by hue rotation.
+- **Automatic palettes** — creates a random five-color starter with light and
+  dark neutral anchors plus an analogous, triadic, or split-complementary trio,
+  either unassigned or with suggested semantic roles already applied; every
+  automatic result clears a 76-point palette-health floor with no bad checks.
 - **Smart suggestions** — fits a requested hue such as green to the palette's
   visual weight, fills structural gaps (light/dark neutral anchors, tonal
   bridges), adds a palette-aware analogous harmony color, and guarantees an
@@ -26,6 +30,11 @@ palette is shareable by link.
 - **Manual ordering** — drag swatches by a compact grip with leaderboard-style
   feedback, or use arrow keys from the focused grip; order persists in share
   links and each completed reorder is undoable.
+- **Clear and restart** — clear the palette in one undoable action, then open the
+  generator or add the first color manually from the empty state.
+- **Palette simplification** — once a palette grows past eight colors, offers an
+  undoable cleanup only when unlocked, unassigned colors are perceptually
+  redundant; purposeful large palettes are left alone.
 - **Health score** — rolls every check into a single 0–100 verdict.
 
 Automatic role suggestions preserve every explicit role and locked swatch. They
@@ -39,6 +48,12 @@ for color math · [motion](https://motion.dev) · Vitest.
 
 All color science lives in `src/color/` as pure functions (no React, no DOM),
 covered by `src/color/color.test.ts`.
+
+## Documentation
+
+- [How marianne decides on color](COLOR_DECISIONS.md) — a
+  reader-friendly and developer-facing walkthrough of every palette editor,
+  analyzer, suggestion, and generator.
 
 ## Development
 

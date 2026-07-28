@@ -11,6 +11,7 @@ import { normalizeHex, toOklch } from '../../color/convert'
 import { Button, IconButton } from '../ui/Button'
 import type { RoleAssignment } from '../../color/roles'
 import { RoleSuggestReview } from './RoleSuggestReview'
+import { PaletteSimplifySuggestion } from './PaletteSimplifySuggestion'
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -21,6 +22,7 @@ import {
   GripIcon,
   LockIcon,
   PlusIcon,
+  SwatchesIcon,
   TrashIcon,
   UnlockIcon,
 } from '../ui/icons'
@@ -43,7 +45,10 @@ interface Props {
   onReorder: (ids: readonly string[]) => boolean
   onRemove: (id: string) => void
   onAdd: () => void
+  onClear: () => void
+  onGenerate: () => void
   onSetRoles: (assignments: readonly RoleAssignment[]) => boolean
+  onSimplify: (palette: Palette) => void
 }
 
 const ROLE_GROUPS: { label: string; roles: Role[] }[] = [
@@ -71,7 +76,10 @@ export function SwatchGrid({
   onReorder,
   onRemove,
   onAdd,
+  onClear,
+  onGenerate,
   onSetRoles,
+  onSimplify,
 }: Props) {
   const reduceMotion = useReducedMotion()
   const reorderBoundsRef = useRef<HTMLDivElement>(null)
@@ -145,7 +153,7 @@ export function SwatchGrid({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex min-h-8 items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
           Palette
           {palette.length > 0 && (
@@ -154,79 +162,121 @@ export function SwatchGrid({
             </span>
           )}
         </h2>
-        <Button variant="primary" onClick={onAdd}>
-          <PlusIcon /> Add color
-        </Button>
+        {palette.length > 0 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              className="px-2 text-xs"
+              onClick={onClear}
+              title="Clear every color (undoable)"
+            >
+              <TrashIcon width={14} height={14} /> Clear palette
+            </Button>
+            <Button variant="primary" onClick={onAdd}>
+              <PlusIcon /> Add color
+            </Button>
+          </div>
+        )}
       </div>
 
-      <RoleSuggestReview palette={palette} onApply={onSetRoles} />
+      {palette.length === 0 ? (
+        <EmptyPalette onAdd={onAdd} onGenerate={onGenerate} />
+      ) : (
+        <>
+          <PaletteSimplifySuggestion palette={palette} onApply={onSimplify} />
 
-      <div ref={reorderBoundsRef} className="relative">
-        <Reorder.Group
-          axis="y"
-          values={pageItems}
-          onReorder={reorderPage}
-          as="div"
-          role="list"
-          aria-label="Palette colors"
-          className="space-y-2"
-        >
-          {/* No AnimatePresence: an exiting item held in the tree while it is
-              already dropped from the sliced `values` breaks Reorder's layout
-              projection (stranding items low). Reorder.Item's own `layout`
-              slides survivors up on delete and settles new pages in place. */}
-          {pageItems.map((swatch) => (
-            <DraggableSwatch
-              key={swatch.id}
-              swatch={swatch}
-              constraintsRef={reorderBoundsRef}
-              reduceMotion={reduceMotion ?? false}
-              onChange={(hex) => onUpdate(swatch.id, hex)}
-              onRole={(role) => onRole(swatch.id, role)}
-              onKeyboardMove={(direction) =>
-                moveWithKeyboard(swatch.id, swatch.hex, direction)
-              }
-              onDragStart={() =>
-                setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
-              }
-              onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
-              onToggleLock={() => onToggleLock(swatch.id)}
-              onRemove={() => onRemove(swatch.id)}
-            />
-          ))}
-        </Reorder.Group>
-      </div>
+          <RoleSuggestReview palette={palette} onApply={onSetRoles} />
 
-      {pageCount > 1 && (
-        <div className="flex items-center justify-between gap-2">
-          <IconButton
-            onClick={() => setPage(Math.max(0, currentPage - 1))}
-            disabled={currentPage === 0}
-            title="Previous colors"
-            className="h-7 w-7"
-          >
-            <ChevronLeftIcon width={14} height={14} />
-          </IconButton>
-          <span className="text-xs tabular-nums text-muted">
-            {currentPage + 1} / {pageCount}
-          </span>
-          <IconButton
-            onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
-            disabled={currentPage === pageCount - 1}
-            title="More colors"
-            className="h-7 w-7"
-          >
-            <ChevronRightIcon width={14} height={14} />
-          </IconButton>
-        </div>
+          <div ref={reorderBoundsRef} className="relative">
+            <Reorder.Group
+              axis="y"
+              values={pageItems}
+              onReorder={reorderPage}
+              as="div"
+              role="list"
+              aria-label="Palette colors"
+              className="space-y-2"
+            >
+              {/* No AnimatePresence: an exiting item held in the tree while it is
+                  already dropped from the sliced `values` breaks Reorder's layout
+                  projection (stranding items low). Reorder.Item's own `layout`
+                  slides survivors up on delete and settles new pages in place. */}
+              {pageItems.map((swatch) => (
+                <DraggableSwatch
+                  key={swatch.id}
+                  swatch={swatch}
+                  constraintsRef={reorderBoundsRef}
+                  reduceMotion={reduceMotion ?? false}
+                  onChange={(hex) => onUpdate(swatch.id, hex)}
+                  onRole={(role) => onRole(swatch.id, role)}
+                  onKeyboardMove={(direction) =>
+                    moveWithKeyboard(swatch.id, swatch.hex, direction)
+                  }
+                  onDragStart={() =>
+                    setMoveAnnouncement(`${swatch.hex.toUpperCase()} picked up.`)
+                  }
+                  onDragEnd={() => commitOrder(swatch.id, swatch.hex)}
+                  onToggleLock={() => onToggleLock(swatch.id)}
+                  onRemove={() => onRemove(swatch.id)}
+                />
+              ))}
+            </Reorder.Group>
+          </div>
+
+          {pageCount > 1 && (
+            <div className="flex items-center justify-between gap-2">
+              <IconButton
+                onClick={() => setPage(Math.max(0, currentPage - 1))}
+                disabled={currentPage === 0}
+                title="Previous colors"
+                className="h-7 w-7"
+              >
+                <ChevronLeftIcon width={14} height={14} />
+              </IconButton>
+              <span className="text-xs tabular-nums text-muted">
+                {currentPage + 1} / {pageCount}
+              </span>
+              <IconButton
+                onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))}
+                disabled={currentPage === pageCount - 1}
+                title="More colors"
+                className="h-7 w-7"
+              >
+                <ChevronRightIcon width={14} height={14} />
+              </IconButton>
+            </div>
+          )}
+        </>
       )}
 
       <p role="status" aria-live="polite" className="sr-only">
         {moveAnnouncement}
       </p>
-      {palette.length === 0 && (
-        <p className="text-sm text-muted">No colors yet — add one to start.</p>
-      )}
+    </div>
+  )
+}
+
+function EmptyPalette({
+  onAdd,
+  onGenerate,
+}: {
+  onAdd: () => void
+  onGenerate: () => void
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-line/70 bg-surface/60 p-4 text-center">
+      <h3 className="text-sm font-semibold text-fg">Start a new palette</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted">
+        Generate a harmonious set or add your first color by hand.
+      </p>
+      <div className="mt-3 grid gap-2">
+        <Button variant="primary" onClick={onGenerate}>
+          <SwatchesIcon /> Generate a palette
+        </Button>
+        <Button variant="surface" onClick={onAdd}>
+          <PlusIcon /> Add one manually
+        </Button>
+      </div>
     </div>
   )
 }

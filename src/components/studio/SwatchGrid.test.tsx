@@ -23,7 +23,10 @@ describe('SwatchGrid reordering', () => {
         onReorder={onReorder}
         onRemove={vi.fn()}
         onAdd={vi.fn()}
+        onClear={vi.fn()}
+        onGenerate={vi.fn()}
         onSetRoles={vi.fn(() => true)}
+        onSimplify={vi.fn()}
       />,
     )
 
@@ -49,5 +52,39 @@ describe('SwatchGrid reordering', () => {
       'Drag #3a7bd5 to reorder. Use arrow keys to move it.',
     )
     expect(blueGrip).toHaveFocus()
+  })
+
+  it('offers clear for a populated palette and creation paths when empty', () => {
+    const onClear = vi.fn()
+    const onAdd = vi.fn()
+    const onGenerate = vi.fn()
+    const common = {
+      onUpdate: vi.fn(),
+      onRole: vi.fn(),
+      onToggleLock: vi.fn(),
+      onReorder: vi.fn(() => true),
+      onRemove: vi.fn(),
+      onAdd,
+      onClear,
+      onGenerate,
+      onSetRoles: vi.fn(() => true),
+      onSimplify: vi.fn(),
+    }
+    const { rerender } = render(<SwatchGrid palette={palette} {...common} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear palette' }))
+    expect(onClear).toHaveBeenCalledOnce()
+
+    rerender(<SwatchGrid palette={[]} {...common} />)
+
+    expect(screen.getByRole('heading', { name: 'Palette' }).parentElement).toHaveClass(
+      'min-h-8',
+    )
+    expect(screen.queryByRole('button', { name: 'Clear palette' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Auto-suggest roles' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate a palette' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add one manually' }))
+    expect(onGenerate).toHaveBeenCalledOnce()
+    expect(onAdd).toHaveBeenCalledOnce()
   })
 })

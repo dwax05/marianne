@@ -6,6 +6,7 @@ import { applyRoleAssignments } from '../color/roles'
 import { suggestForRole } from '../color/suggest'
 import {
   decodePalette,
+  EMPTY_PALETTE_CODE,
   encodePalette,
   loadLocal,
   makeSwatch,
@@ -31,7 +32,8 @@ function paletteFromHash(): Palette | null {
   if (q === -1) return null
   const params = new URLSearchParams(hash.slice(q + 1))
   const p = params.get('p')
-  if (!p) return null
+  if (p === null) return null
+  if (p === EMPTY_PALETTE_CODE) return []
   const decoded = decodePalette(p)
   return decoded.length ? decoded : null
 }
@@ -55,6 +57,8 @@ export interface UsePalette {
   /** Commit a complete swatch order in one undoable operation. */
   reorderSwatches: (ids: readonly string[]) => boolean
   removeSwatch: (id: string) => void
+  /** Clear every swatch in one undoable operation. */
+  clear: () => void
   reset: () => void
   undo: () => void
   canUndo: boolean
@@ -172,6 +176,10 @@ export function usePalette(): UsePalette {
     [palette, commit],
   )
 
+  const clear = useCallback(() => {
+    if (palette.length > 0) commit([])
+  }, [palette, commit])
+
   const reset = useCallback(() => {
     commit(defaultPalette())
   }, [commit])
@@ -201,6 +209,7 @@ export function usePalette(): UsePalette {
     toggleLock,
     reorderSwatches,
     removeSwatch,
+    clear,
     reset,
     undo,
     canUndo: history.length > 0,

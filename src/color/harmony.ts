@@ -6,6 +6,26 @@ const deltaE = differenceCiede2000()
 /** Below this CIEDE2000 distance two colors read as the same. */
 const SAME_COLOR = 6
 
+export type RandomHarmonyScheme =
+  | 'Analogous'
+  | 'Triadic'
+  | 'Split complementary'
+
+export interface RandomHarmonyPalette {
+  scheme: RandomHarmonyScheme
+  baseHex: Hex
+  colors: Hex[]
+}
+
+const RANDOM_SCHEMES: Array<{
+  label: RandomHarmonyScheme
+  offsets: readonly number[]
+}> = [
+  { label: 'Analogous', offsets: [-30, 0, 30] },
+  { label: 'Triadic', offsets: [0, 120, 240] },
+  { label: 'Split complementary', offsets: [0, 150, 210] },
+]
+
 function rotate(base: Oklch, deg: number): Hex {
   return toHex({ ...base, h: (base.h + deg + 360) % 360 })
 }
@@ -82,4 +102,40 @@ export function combinedHarmonies(baseHexes: Hex[]): HarmonySet | null {
     out[key] = interleave(sets.map((s) => s[key]))
   }
   return out
+}
+
+/**
+ * Build a five-color starter palette from a random display-safe OKLCH base:
+ * two subtly tinted neutral anchors plus a three-color classic harmony.
+ * Accepting an RNG keeps the algorithm deterministic in tests.
+ */
+export function randomHarmonyPalette(
+  random: () => number = Math.random,
+): RandomHarmonyPalette {
+  const hue = randomUnit(random) * 360
+  const base: Oklch = {
+    l: 0.52 + randomUnit(random) * 0.16,
+    c: 0.13 + randomUnit(random) * 0.08,
+    h: hue,
+  }
+  const scheme = RANDOM_SCHEMES[
+    Math.floor(randomUnit(random) * RANDOM_SCHEMES.length)
+  ]
+  const baseHex = toHex(base)
+
+  return {
+    scheme: scheme.label,
+    baseHex,
+    colors: [
+      toHex({ l: 0.965, c: 0.012, h: (hue + 20) % 360 }),
+      toHex({ l: 0.2, c: 0.02, h: hue }),
+      ...scheme.offsets.map((offset) => rotate(base, offset)),
+    ],
+  }
+}
+
+function randomUnit(random: () => number): number {
+  const value = random()
+  if (!Number.isFinite(value)) return 0.5
+  return Math.min(1 - Number.EPSILON, Math.max(0, value))
 }

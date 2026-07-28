@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { usePalette } from '../../hooks/usePalette'
 import { encodePalette } from '../../color/encode'
@@ -32,6 +32,7 @@ type Mode = 'analyze' | 'generate'
 export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
   const pal = usePalette()
   const [mode, setMode] = useState<Mode>('analyze')
+  const [generatorAttention, setGeneratorAttention] = useState(0)
   const [copied, setCopied] = useState('')
   const health = useMemo(() => paletteHealth(pal.palette), [pal.palette])
 
@@ -44,6 +45,14 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
     flash('Share link copied')
   }
   const appendPalette = (p: Palette) => pal.commit([...pal.palette, ...p])
+  const openGenerator = () => {
+    setMode('generate')
+    setGeneratorAttention((request) => request + 1)
+  }
+  const changeMode = (nextMode: Mode) => {
+    setMode(nextMode)
+    setGeneratorAttention(0)
+  }
 
   return (
     <div className="relative isolate min-h-screen overflow-x-clip text-fg">
@@ -51,7 +60,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
         <a href="#/" className="text-lg font-semibold tracking-tight">
           marianne
         </a>
-        <ModeSwitch mode={mode} onChange={setMode} />
+        <ModeSwitch mode={mode} onChange={changeMode} />
         <div className="ml-auto flex items-center gap-2">
           <AnimatePresence>
             {copied && (
@@ -90,7 +99,10 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
             onReorder={pal.reorderSwatches}
             onRemove={pal.removeSwatch}
             onAdd={() => pal.addSwatch()}
+            onClear={pal.clear}
+            onGenerate={openGenerator}
             onSetRoles={pal.setRoles}
+            onSimplify={pal.commit}
           />
         </aside>
 
@@ -169,6 +181,7 @@ export function Studio({ theme, onThemeToggle }: ThemeToggleProps) {
                     icon={<SwatchesIcon />}
                     title="Generate a palette"
                     blurb="Pick a base color and grow a harmonious set. Replace your palette or append the colors."
+                    attentionRequest={generatorAttention}
                   >
                     <HarmonyPanel
                       palette={pal.palette}
@@ -241,14 +254,46 @@ function Section({
   title,
   blurb,
   children,
+  attentionRequest,
 }: {
   icon: React.ReactNode
   title: string
   blurb: string
   children: React.ReactNode
+  attentionRequest?: number
 }) {
+  const sectionRef = useRef<HTMLElement>(null)
+  const [highlighted, setHighlighted] = useState(false)
+
+  useEffect(() => {
+    if (!attentionRequest) return
+    const section = sectionRef.current
+    if (!section) return
+
+    const reducedMotion =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    section.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth',
+      block: 'center',
+    })
+    section.focus({ preventScroll: true })
+    setHighlighted(true)
+    const timer = window.setTimeout(() => setHighlighted(false), 1400)
+    return () => window.clearTimeout(timer)
+  }, [attentionRequest])
+
   return (
-    <section className="rounded-2xl border border-line/40 bg-surface p-4 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)]">
+    <section
+      ref={sectionRef}
+      tabIndex={-1}
+      aria-label={title}
+      className={`scroll-mt-20 rounded-2xl border bg-surface p-4 shadow-lg shadow-[color:rgb(var(--card-shadow)_/_0.15)] outline-none transition-[border-color,box-shadow] duration-300 ${
+        highlighted
+          ? 'border-accent ring-2 ring-accent/45 ring-offset-2 ring-offset-bg'
+          : 'border-line/40'
+      }`}
+    >
       <div className="flex items-center gap-2 text-accent">
         {icon}
         <h2 className="text-sm font-semibold text-fg">{title}</h2>

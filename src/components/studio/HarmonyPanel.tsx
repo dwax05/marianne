@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import type { HarmonySet, Palette } from '../../color/types'
 import { combinedHarmonies } from '../../color/harmony'
 import { makeSwatch } from '../../color/encode'
+import { generateAutomaticPalette } from '../../color/generate'
 import { Button, IconButton } from '../ui/Button'
 import { ColorInputRow } from '../ui/ColorInputRow'
-import { PlusIcon, TrashIcon } from '../ui/icons'
+import { PlusIcon, SparkleIcon, TrashIcon } from '../ui/icons'
 
 interface Props {
   palette: Palette
@@ -42,6 +43,7 @@ export function HarmonyPanel({ palette, onReplace, onAppend }: Props) {
   const [bases, setBases] = useState<Base[]>([
     { id: newId(), hex: palette[0]?.hex ?? '#3a7bd5' },
   ])
+  const [randomFeedback, setRandomFeedback] = useState('')
   const sets = useMemo(
     () => combinedHarmonies(bases.map((b) => b.hex)),
     [bases],
@@ -56,9 +58,53 @@ export function HarmonyPanel({ palette, onReplace, onAppend }: Props) {
 
   const toPalette = (hexes: string[]): Palette =>
     hexes.map((h) => makeSwatch(h)).filter((s): s is Palette[number] => !!s)
+  const generateRandom = (withRoles: boolean) => {
+    const generated = generateAutomaticPalette({ withRoles })
+
+    setBases([{ id: newId(), hex: generated.baseHex }])
+    setRandomFeedback(
+      withRoles
+        ? `${generated.scheme} palette generated with roles from ${generated.baseHex} · health ${generated.health}/100.`
+        : `${generated.scheme} palette generated from ${generated.baseHex} · health ${generated.health}/100.`,
+    )
+    onReplace(generated.palette)
+  }
 
   return (
     <div className="space-y-3 text-sm">
+      <div className="rounded-xl border border-accent/30 bg-accent/5 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold text-fg">Automatic palette</div>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
+              Create five colors with two neutral anchors and a random harmony,
+              with or without suggested roles.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="surface"
+              className="text-xs"
+              onClick={() => generateRandom(false)}
+            >
+              Generate random palette
+            </Button>
+            <Button
+              variant="primary"
+              className="text-xs"
+              onClick={() => generateRandom(true)}
+            >
+              <SparkleIcon width={14} height={14} /> Generate palette with roles
+            </Button>
+          </div>
+        </div>
+        {randomFeedback && (
+          <p role="status" className="mt-2 text-xs text-muted">
+            {randomFeedback}
+          </p>
+        )}
+      </div>
+
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-widest text-muted">

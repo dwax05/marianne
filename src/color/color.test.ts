@@ -10,7 +10,11 @@ import {
 import { paletteHealth } from './health'
 import { simulate, collapsedPairs } from './cvd'
 import { analyzeBalance, evenRamp } from './balance'
-import { harmonies, combinedHarmonies } from './harmony'
+import {
+  harmonies,
+  combinedHarmonies,
+  randomHarmonyPalette,
+} from './harmony'
 import { encodePalette, decodePalette } from './encode'
 import { mixPaint, mixPaintPixel, toPaintRgb } from './paint'
 import {
@@ -799,9 +803,32 @@ describe('harmony', () => {
   it('combined of no valid bases is null', () => {
     expect(combinedHarmonies([])).toBeNull()
   })
+  it('builds a deterministic five-color random starter palette', () => {
+    const values = [0, 0.5, 0.5, 0.999]
+    const generated = randomHarmonyPalette(() => values.shift() ?? 0)
+
+    expect(generated.scheme).toBe('Split complementary')
+    expect(generated.colors).toHaveLength(5)
+    expect(generated.colors.every((hex) => /^#[0-9a-f]{6}$/.test(hex))).toBe(
+      true,
+    )
+    expect(generated.colors[2]).toBe(generated.baseHex)
+
+    const light = toOklch(generated.colors[0])!
+    const dark = toOklch(generated.colors[1])!
+    expect(light.l).toBeGreaterThan(0.94)
+    expect(light.c).toBeLessThan(0.04)
+    expect(dark.l).toBeLessThan(0.25)
+    expect(dark.c).toBeLessThan(0.04)
+  })
 })
 
 describe('encode', () => {
+  it('round-trips an explicitly empty palette', () => {
+    expect(encodePalette([])).toBe('empty')
+    expect(decodePalette('empty')).toEqual([])
+  })
+
   it('round-trips a palette', () => {
     const p = pal('#1b1b1f', '#e5484d', '#2f9e6b')
     const decoded = decodePalette(encodePalette(p))

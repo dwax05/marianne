@@ -2,6 +2,7 @@ import type { Palette, Role, Swatch } from './types'
 import { normalizeHex } from './convert'
 
 const STORAGE_KEY = 'marianne:palette'
+export const EMPTY_PALETTE_CODE = 'empty'
 let idCounter = 0
 
 function nextId(): string {
@@ -48,10 +49,12 @@ export function makeSwatch(
 
 /**
  * Encode a palette for the URL hash. Each swatch is `<hex>[.<roleCode>][!]`,
- * joined by '-'. Plain hex (unset role, unlocked) stays back-compatible.
+ * joined by '-'. Plain hex (unset role, unlocked) stays back-compatible; an
+ * explicitly empty palette uses `empty` so it is distinct from no saved state.
  * e.g. "1b1b1f.b-e5484d.t!-2f9e6b"
  */
 export function encodePalette(palette: Palette): string {
+  if (palette.length === 0) return EMPTY_PALETTE_CODE
   return palette
     .map((s) => {
       let tok = s.hex.replace(/^#/, '')
@@ -65,7 +68,7 @@ export function encodePalette(palette: Palette): string {
 
 /** Decode a hash string back into a palette, dropping invalid tokens. */
 export function decodePalette(str: string): Palette {
-  if (!str) return []
+  if (!str || str === EMPTY_PALETTE_CODE) return []
   return str
     .split('-')
     .map(parseToken)
@@ -102,7 +105,8 @@ export function saveLocal(palette: Palette): void {
 export function loadLocal(): Palette | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
+    if (raw === null) return null
+    if (raw === EMPTY_PALETTE_CODE) return []
     const p = decodePalette(raw)
     return p.length ? p : null
   } catch {

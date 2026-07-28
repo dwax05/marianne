@@ -4,7 +4,7 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { usePalette } from './usePalette'
 
-describe('usePalette.setRoles', () => {
+describe('usePalette', () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.history.replaceState(null, '', '#/app')
@@ -104,5 +104,34 @@ describe('usePalette.setRoles', () => {
     act(() => result.current.undo())
     expect(result.current.palette).toEqual(before)
     expect(result.current.canUndo).toBe(false)
+  })
+
+  it('clears the palette once and Undo restores every color', () => {
+    window.history.replaceState(
+      null,
+      '',
+      '#/app?p=ffffff.b-111111.t-3a7bd5.p',
+    )
+    const { result } = renderHook(() => usePalette())
+    const before = result.current.palette.map((swatch) => ({ ...swatch }))
+
+    act(() => result.current.clear())
+
+    expect(result.current.palette).toEqual([])
+    expect(result.current.canUndo).toBe(true)
+    expect(result.current.shareUrl()).toContain('#/app?p=empty')
+
+    act(() => result.current.undo())
+
+    expect(result.current.palette).toEqual(before)
+    expect(result.current.canUndo).toBe(false)
+  })
+
+  it('loads an explicitly empty palette from a share URL', () => {
+    window.history.replaceState(null, '', '#/app?p=empty')
+
+    const { result } = renderHook(() => usePalette())
+
+    expect(result.current.palette).toEqual([])
   })
 })
