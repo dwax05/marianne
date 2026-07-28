@@ -361,8 +361,6 @@ function DraggableSwatch({
       dragMomentum={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      initial={false}
-      animate={{ opacity: 1, y: 0 }}
       whileDrag={
         reduceMotion
           ? { zIndex: 20 }
