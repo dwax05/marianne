@@ -8,12 +8,15 @@ import { Reorder, useDragControls, useReducedMotion } from 'motion/react'
 import type { Palette, Role } from '../../color/types'
 import { ROLE_LABELS } from '../../color/types'
 import { normalizeHex, toOklch } from '../../color/convert'
+import { paletteToCss } from '../../color/css'
+import { sortPaletteByLightness } from '../../color/balance'
 import { Button, IconButton } from '../ui/Button'
 import type { RoleAssignment } from '../../color/roles'
 import { RoleSuggestReview } from './RoleSuggestReview'
 import { PaletteSimplifySuggestion } from './PaletteSimplifySuggestion'
 import {
   CheckIcon,
+  BalanceIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -86,6 +89,7 @@ export function SwatchGrid({
   const [orderedPalette, setOrderedPalette] = useState(palette)
   const orderedPaletteRef = useRef(palette)
   const [moveAnnouncement, setMoveAnnouncement] = useState('')
+  const [cssCopied, setCssCopied] = useState(false)
   const [page, setPage] = useState(0)
   const prevLenRef = useRef(palette.length)
 
@@ -151,6 +155,16 @@ export function SwatchGrid({
       ...orderedPalette.slice(start + PAGE_SIZE),
     ])
 
+  const copyCss = async () => {
+    try {
+      await navigator.clipboard.writeText(paletteToCss(palette))
+      setCssCopied(true)
+      window.setTimeout(() => setCssCopied(false), 1500)
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex min-h-8 items-center justify-between">
@@ -183,6 +197,25 @@ export function SwatchGrid({
         <EmptyPalette onAdd={onAdd} onGenerate={onGenerate} />
       ) : (
         <>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="surface"
+              className="text-xs"
+              onClick={() =>
+                onReorder(
+                  sortPaletteByLightness(palette).map((swatch) => swatch.id),
+                )
+              }
+              title="Sort darkest to lightest (undoable)"
+            >
+              <BalanceIcon /> Sort palette
+            </Button>
+            <Button variant="surface" className="text-xs" onClick={copyCss}>
+              {cssCopied ? <CheckIcon /> : <CopyIcon />}
+              {cssCopied ? 'CSS copied' : 'Copy as CSS'}
+            </Button>
+          </div>
+
           <PaletteSimplifySuggestion palette={palette} onApply={onSimplify} />
 
           <RoleSuggestReview palette={palette} onApply={onSetRoles} />

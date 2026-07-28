@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { motion } from 'motion/react'
 import { Button } from '../ui/Button'
@@ -42,11 +42,21 @@ const FEATURES = [
 export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
   const [activeSample, setActiveSample] = useState(HERO)
   const [selectedPaintId, setSelectedPaintId] = useState('')
+  const sampleStripRef = useRef<HTMLDivElement>(null)
   const paints = useMemo(
     () => activeSample.swatch.map((color, index) => ({ id: `paint-${index}`, color })),
     [activeSample],
   )
   const selectedPaint = paints.find((paint) => paint.id === selectedPaintId)
+
+  useEffect(() => {
+    const strip = sampleStripRef.current
+    if (!strip) return
+    const onWheel = (event: WheelEvent) =>
+      scrollSamplesWithWheel(strip, event)
+    strip.addEventListener('wheel', onWheel, { passive: false })
+    return () => strip.removeEventListener('wheel', onWheel)
+  }, [])
 
   const loadPaints = (sample: (typeof SAMPLES)[number]) => {
     setActiveSample(sample)
@@ -149,7 +159,13 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
           <p className="mx-auto mb-6 max-w-md text-balance text-center text-sm text-muted">
             Load a set of paints onto the board, then choose a color and paint.
           </p>
-          <div className="-mx-6 flex snap-x gap-3 overflow-x-auto px-6 pt-3 pb-2 [mask-image:linear-gradient(to_right,transparent,black_2.5rem,black_calc(100%-2.5rem),transparent)]">
+          <div
+            ref={sampleStripRef}
+            role="region"
+            aria-label="Sample palettes"
+            tabIndex={0}
+            className="-mx-6 flex gap-3 overflow-x-auto overscroll-x-contain px-6 pt-3 pb-2 [mask-image:linear-gradient(to_right,transparent,black_2.5rem,black_calc(100%-2.5rem),transparent)]"
+          >
             {SAMPLES.map((s) => (
               <Button
                 key={s.name}
@@ -158,7 +174,7 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
                 onClick={() => loadPaints(s)}
                 aria-pressed={activeSample.name === s.name}
                 title={s.effect}
-                className={`group w-56 shrink-0 snap-start rounded-2xl p-3 text-left ${activeSample.name === s.name ? '!border-accent ring-1 ring-accent/50' : ''}`}
+                className={`group w-56 shrink-0 rounded-2xl p-3 text-left ${activeSample.name === s.name ? '!border-accent ring-1 ring-accent/50' : ''}`}
               >
                 <div className="mb-2 flex overflow-hidden rounded-lg">
                   {s.swatch.map((c) => (
@@ -214,4 +230,23 @@ export function Landing({ theme, onThemeToggle }: ThemeToggleProps) {
       </footer>
     </div>
   )
+}
+
+function scrollSamplesWithWheel(strip: HTMLDivElement, event: WheelEvent) {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+  const maxScroll = Math.max(0, strip.scrollWidth - strip.clientWidth)
+  if (maxScroll === 0) return
+  const multiplier =
+    event.deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? 40
+      : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? strip.clientWidth
+        : 1
+  const next = Math.min(
+    maxScroll,
+    Math.max(0, strip.scrollLeft + event.deltaY * multiplier),
+  )
+  if (next === strip.scrollLeft) return
+  event.preventDefault()
+  strip.scrollLeft = next
 }

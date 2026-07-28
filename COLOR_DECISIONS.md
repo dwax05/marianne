@@ -85,6 +85,13 @@ Changing the role of any non-placeholder swatch never changes its color.
 A lock does not prevent manual editing or role changes. It protects the swatch
 from automatic color fixes and excludes it from automatic role assignment.
 
+**Sort palette** orders every swatch from darkest to lightest by perceptual
+lightness. It changes order only—hex values, roles, and locks remain intact—and
+the entire sort is one undoable action. **Copy as CSS** exports every swatch as
+a custom property. Assigned roles produce names such as `--color-background`
+and `--color-primary`; unassigned colors use their palette position, and a
+repeated role receives a numeric suffix so no color is overwritten.
+
 **Clear palette** removes every swatch as one undoable action; it does not reset
 to the built-in defaults. With no colors, the Palette sidebar offers two explicit
 starting paths: open the palette generator or add the gray manual placeholder.
@@ -122,6 +129,15 @@ tie. The implementation is split between
 [`src/hooks/usePalette.ts`](src/hooks/usePalette.ts),
 [`src/color/suggest.ts`](src/color/suggest.ts), and
 [`src/color/audit.ts`](src/color/audit.ts).
+
+Sorting uses each valid swatch's OKLCH L value, with original palette position
+as the stable tie-breaker. Invalid colors, if one reaches this layer, sort last.
+`SwatchGrid` sends the resulting ID order through the same validated,
+history-aware reorder function used by drag and keyboard moves. CSS export is
+implemented by `paletteToCss`; role occurrence counts produce suffixes such as
+`--color-accent-2`, while No role uses the one-based palette index. See
+[`src/color/balance.ts`](src/color/balance.ts) and
+[`src/color/css.ts`](src/color/css.ts).
 
 ## Auto-suggest roles: deciding what each existing color could do
 

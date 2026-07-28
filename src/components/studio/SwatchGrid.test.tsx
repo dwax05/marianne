@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Palette } from '../../color/types'
 import { SwatchGrid } from './SwatchGrid'
@@ -86,5 +86,62 @@ describe('SwatchGrid reordering', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add one manually' }))
     expect(onGenerate).toHaveBeenCalledOnce()
     expect(onAdd).toHaveBeenCalledOnce()
+  })
+
+  it('copies the complete palette as role-aware CSS', async () => {
+    const writeText = vi.fn(() => Promise.resolve())
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    render(
+      <SwatchGrid
+        palette={palette}
+        onUpdate={vi.fn()}
+        onRole={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReorder={vi.fn(() => true)}
+        onRemove={vi.fn()}
+        onAdd={vi.fn()}
+        onClear={vi.fn()}
+        onGenerate={vi.fn()}
+        onSetRoles={vi.fn(() => true)}
+        onSimplify={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy as CSS' }))
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(`:root {
+  --color-text: #111111;
+  --color-background: #ffffff;
+  --color-primary: #3a7bd5;
+}`),
+    )
+    expect(screen.getByRole('button', { name: 'CSS copied' })).toBeVisible()
+  })
+
+  it('sorts the palette from dark to light through the undoable reorder path', () => {
+    const onReorder = vi.fn(() => true)
+    render(
+      <SwatchGrid
+        palette={palette}
+        onUpdate={vi.fn()}
+        onRole={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReorder={onReorder}
+        onRemove={vi.fn()}
+        onAdd={vi.fn()}
+        onClear={vi.fn()}
+        onGenerate={vi.fn()}
+        onSetRoles={vi.fn(() => true)}
+        onSimplify={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort palette' }))
+
+    expect(onReorder).toHaveBeenCalledWith(['a', 'c', 'b'])
   })
 })

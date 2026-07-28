@@ -47,6 +47,21 @@ export function analyzeBalance(palette: Palette): BalanceReport {
   return { steps, unevenness }
 }
 
+/** Order a palette from darkest to lightest without changing any swatch. */
+export function sortPaletteByLightness(palette: Palette): Palette {
+  return palette
+    .map((swatch, index) => ({
+      swatch,
+      index,
+      lightness: toOklch(swatch.hex)?.l ?? Number.POSITIVE_INFINITY,
+    }))
+    .sort(
+      (a, b) =>
+        a.lightness - b.lightness || a.index - b.index,
+    )
+    .map(({ swatch }) => swatch)
+}
+
 /**
  * Respace the palette to uniform lightness steps between the current min and
  * max lightness, preserving each swatch's chroma and hue (gamut-clamped).

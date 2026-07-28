@@ -9,7 +9,7 @@ import {
 } from './contrast'
 import { paletteHealth } from './health'
 import { simulate, collapsedPairs } from './cvd'
-import { analyzeBalance, evenRamp } from './balance'
+import { analyzeBalance, evenRamp, sortPaletteByLightness } from './balance'
 import {
   harmonies,
   combinedHarmonies,
@@ -766,6 +766,25 @@ describe('cvd', () => {
 })
 
 describe('balance', () => {
+  it('sorts dark to light without mutating swatch data', () => {
+    const palette: Palette = [
+      { id: 'light', hex: '#ffffff', role: 'background', locked: true },
+      { id: 'dark', hex: '#111111', role: 'text', locked: false },
+      { id: 'middle', hex: '#3a7bd5', role: 'primary', locked: false },
+    ]
+    const before = palette.map((swatch) => ({ ...swatch }))
+
+    const sorted = sortPaletteByLightness(palette)
+
+    expect(sorted.map((swatch) => swatch.id)).toEqual([
+      'dark',
+      'middle',
+      'light',
+    ])
+    expect(palette).toEqual(before)
+    expect(sorted.find((swatch) => swatch.id === 'light')).toEqual(before[0])
+  })
+
   it('evenRamp produces near-uniform lightness steps', () => {
     const p = pal('#111111', '#222222', '#f0f0f0') // clustered dark + one light
     const evened = evenRamp(p)

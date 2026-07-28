@@ -4,16 +4,16 @@ import { mixPaintPixel, toPaintRgb } from '../../color/paint'
 import { clamp } from '../../lib/num'
 import { Button } from './Button'
 import { UndoIcon } from './icons'
+import {
+  pointFromViewport,
+  pointToViewport,
+  type PaintPoint,
+} from './paintCanvasGeometry'
 import type { Theme } from '../../theme'
 
-interface BrushPoint {
-  x: number
-  y: number
-}
-
 interface BrushSegment {
-  from: BrushPoint
-  to: BrushPoint
+  from: PaintPoint
+  to: PaintPoint
   width: number
   color: string
   strokeId: number
@@ -30,7 +30,7 @@ const PaintCanvasContext = createContext<PaintCanvasSession | null>(null)
 
 export function PaintCanvasSessionProvider({ children }: { children: ReactNode }) {
   const session = useRef<PaintCanvasSession>({
-    version: 4,
+    version: 6,
     nextStrokeId: 1,
     segments: [],
   })
@@ -91,13 +91,13 @@ export function PaintCanvas({
   const redrawRef = useRef<(() => void) | null>(null)
   const inheritedSession = useContext(PaintCanvasContext)
   const localSession = useRef<PaintCanvasSession>({
-    version: 4,
+    version: 6,
     nextStrokeId: 1,
     segments: [],
   })
   const session = inheritedSession ?? localSession.current
-  if (session.version !== 4) {
-    session.version = 4
+  if (session.version !== 6) {
+    session.version = 6
     session.nextStrokeId = 1
     session.segments = []
   }
@@ -132,14 +132,20 @@ export function PaintCanvas({
     let dpr = 1
     let active: {
       pointerId: number
-      point: BrushPoint
+      point: PaintPoint
       strokeId: number
       width: number
     } | null = null
     let segmentSeed = session.segments.length
+    let scrollFrame: number | null = null
 
     const applyPaint = (stored: BrushSegment, present: boolean) => {
-      const segment = denormalize(stored, width, height)
+      const scroll = { x: window.scrollX, y: window.scrollY }
+      const segment = {
+        ...stored,
+        from: pointToViewport(stored.from, scroll),
+        to: pointToViewport(stored.to, scroll),
+      }
       const pad = segment.width / 2 + 3
       const left = clamp(Math.floor(Math.min(segment.from.x, segment.to.x) - pad), 0, width)
       const top = clamp(Math.floor(Math.min(segment.from.y, segment.to.y) - pad), 0, height)
@@ -242,10 +248,12 @@ export function PaintCanvas({
       redraw()
     }
 
-    const pointFromEvent = (event: PointerEvent): BrushPoint => ({
-      x: event.clientX,
-      y: event.clientY,
-    })
+    const pointFromEvent = (event: PointerEvent): PaintPoint => {
+      return pointFromViewport(
+        { x: event.clientX, y: event.clientY },
+        { x: window.scrollX, y: window.scrollY },
+      )
+    }
 
     const blocked = (event: PointerEvent) => {
       const target = event.target
@@ -285,9 +293,9 @@ export function PaintCanvas({
       active.width += (targetWidth - active.width) * 0.22
       const wasEmpty = session.segments.length === 0
       const segment: BrushSegment = {
-        from: { x: active.point.x / width, y: active.point.y / height },
-        to: { x: next.x / width, y: next.y / height },
-        width: active.width / Math.min(width, height),
+        from: active.point,
+        to: next,
+        width: active.width,
         color: paintColor,
         strokeId: active.strokeId,
         seed: segmentSeed++,
@@ -318,12 +326,21 @@ export function PaintCanvas({
     }
     updateCursorRef.current = updateCursorMode
 
+    const onScroll = () => {
+      if (scrollFrame !== null) return
+      scrollFrame = window.requestAnimationFrame(() => {
+        scrollFrame = null
+        redraw()
+      })
+    }
+
     const observer = new ResizeObserver(build)
     observer.observe(canvas)
     window.addEventListener('pointerdown', onPointerDown, { passive: false })
     window.addEventListener('pointermove', onPointerMove, { passive: false })
     window.addEventListener('pointerup', finish)
     window.addEventListener('pointercancel', finish)
+    window.addEventListener('scroll', onScroll, { passive: true })
     document.documentElement.addEventListener('pointerleave', hideCursor)
     forcedColors.addEventListener('change', updateCursorMode)
     updateCursorMode()
@@ -336,6 +353,8 @@ export function PaintCanvas({
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', finish)
       window.removeEventListener('pointercancel', finish)
+      window.removeEventListener('scroll', onScroll)
+      if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame)
       document.documentElement.removeEventListener('pointerleave', hideCursor)
       forcedColors.removeEventListener('change', updateCursorMode)
       document.body.classList.remove('paint-cursor-active')
@@ -375,19 +394,6 @@ export function PaintCanvas({
       )}
     </>
   )
-}
-
-function denormalize(
-  segment: BrushSegment,
-  width: number,
-  height: number,
-): BrushSegment {
-  return {
-    ...segment,
-    from: { x: segment.from.x * width, y: segment.from.y * height },
-    to: { x: segment.to.x * width, y: segment.to.y * height },
-    width: segment.width * Math.min(width, height),
-  }
 }
 
 function drawCanvasTexture(

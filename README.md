@@ -27,9 +27,9 @@ palette is shareable by link.
 - **Auto-suggested roles** — infers a light or dark palette interpretation, then
   proposes confidence-ranked semantic roles and alternatives for unassigned
   colors in one reviewable, undoable batch.
-- **Manual ordering** — drag swatches by a compact grip with leaderboard-style
-  feedback, or use arrow keys from the focused grip; order persists in share
-  links and each completed reorder is undoable.
+- **Palette workflow** — drag or keyboard-reorder swatches, sort them dark to
+  light in one undoable action, and copy the complete palette as role-aware CSS
+  custom properties.
 - **Clear and restart** — clear the palette in one undoable action, then open the
   generator or add the first color manually from the empty state.
 - **Palette simplification** — once a palette grows past eight colors, offers an
